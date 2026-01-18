@@ -67,7 +67,7 @@ def check_for_updates():
             
     except Exception as e:
         # Fail silently on network errors or other issues to not disrupt usage
-        print(e)
+        # print(e)
         pass
 
 def main() -> None:
