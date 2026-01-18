@@ -79,17 +79,44 @@ class NixProvider(PackageManager):
             packages = []
             elements = data.get("elements", {})
             
+            def _extract_version(store_paths: List[str]) -> str:
+                if not store_paths: return "unknown"
+                # Example: /nix/store/<hash>-<name>-<version>
+                path = store_paths[0]
+                try:
+                     # Remove /nix/store/ and hash (32 chars) + dash
+                     # /nix/store/ is 11 chars. hash is 32. + 1 dash = 44 chars prefix usually
+                     parts = path.split('/')
+                     if len(parts) > 3 and parts[1] == 'nix' and parts[2] == 'store':
+                         filename = parts[3]
+                         # Format: hash-name-version
+                         # Identifying where name ends and version starts is tricky.
+                         # Heuristic: Find the first dash followed by a digit.
+                         name_ver = filename[33:] # skip hash and dash
+                         
+                         for i in range(len(name_ver)):
+                             if name_ver[i] == '-' and i + 1 < len(name_ver) and name_ver[i+1].isdigit():
+                                 return name_ver[i+1:]
+                except Exception:
+                    pass
+                return "unknown"
+
             # Handle dict structure (common in newer Nix versions)
             if isinstance(elements, dict):
                 for name, details in elements.items():
                     origin = details.get("originalUrl") or details.get("attrPath", "unknown")
-                    packages.append({"name": name, "origin": origin, "version": "unknown"})
+                    store_paths = details.get("storePaths", [])
+                    version = _extract_version(store_paths)
+                    packages.append({"name": name, "origin": origin, "version": version})
+
             # Fallback for potential list structure (older versions?)
             elif isinstance(elements, list):
                 for element in elements:
                     attr_path = element.get("attrPath") or element.get("url", "unknown")
                     name = attr_path.split('.')[-1] if '.' in attr_path else attr_path
-                    packages.append({"name": name, "origin": attr_path, "version": "unknown"})
+                    store_paths = element.get("storePaths", [])
+                    version = _extract_version(store_paths)
+                    packages.append({"name": name, "origin": attr_path, "version": version})
                     
             return packages
         except Exception:

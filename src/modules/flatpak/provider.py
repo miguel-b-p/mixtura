@@ -54,7 +54,7 @@ class FlatpakProvider(PackageManager):
             
         try:
             result = subprocess.run(
-                ["flatpak", "list", "--app", "--columns=name,application,description"],
+                ["flatpak", "list", "--app", "--columns=name,application,description,version"],
                 capture_output=True,
                 text=True
             )
@@ -64,7 +64,11 @@ class FlatpakProvider(PackageManager):
                 for line in lines:
                     parts = line.split('\t')
                     if len(parts) >= 2:
-                        packages.append({"name": parts[0], "id": parts[1], "version": "unknown"})
+                        packages.append({
+                            "name": parts[0],
+                            "id": parts[1],
+                            "version": parts[3] if len(parts) > 3 else "unknown"
+                        })
             return packages
         except Exception:
             return []
