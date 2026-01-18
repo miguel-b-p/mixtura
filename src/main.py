@@ -3,6 +3,9 @@ import sys
 import hashlib
 import os
 import subprocess
+import urllib.request
+import json
+import base64
 
 
 from utils import Style
@@ -27,30 +30,27 @@ def check_for_updates():
     #if not getattr(sys, 'frozen', False):
     #    return
 
-    github_hash_url = "https://raw.githubusercontent.com/miguel-b-p/mixtura/refs/heads/master/bin/HASH"
+    github_hash_url = "https://api.github.com/repos/miguel-b-p/mixtura/contents/bin/HASH"
     try:
         # 1. Calculate local hash using system command
         executable_path = os.path.join(os.path.dirname(sys.argv[0])) + "/mixtura"
         print("executable path:", executable_path)
 
-        # Use sha256sum command
-        result = subprocess.run(
-            ["sha256sum", executable_path], 
-            capture_output=True, 
-            text=True, 
-            check=True
-        )
-        # Expected output format: "hash  filename"
-        local_hash = result.stdout.split()[0]
+        # Use hashlib
+        sha256_hash = hashlib.sha256()
+        with open(executable_path, "rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(byte_block)
+        local_hash = sha256_hash.hexdigest()
+
 
         # 2. Fetch remote hash
-        result = subprocess.run(
-            ["curl", "-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "-sL", github_hash_url],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        remote_hash = result.stdout.strip()
+        req = urllib.request.Request(github_hash_url)
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+            content = data.get("content", "")
+            remote_hash = base64.b64decode(content).decode().strip()
+
         print("local hash:", local_hash)
         print("remote hash:", remote_hash)
 
@@ -60,8 +60,9 @@ def check_for_updates():
             print(f"Please update to the latest version.")
             print()
             
-    except Exception:
+    except Exception as e:
         # Fail silently on network errors or other issues to not disrupt usage
+        print(e)
         pass
 
 def main() -> None:
