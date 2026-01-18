@@ -143,12 +143,12 @@ def cmd_list(args: argparse.Namespace) -> None:
         pkgs = mgr.list_packages()
         
         if pkgs:
-            print(f"{Style.BOLD}{Style.BLUE}:: {mgr.name} ({len(pkgs)}){Style.RESET}")
+            print(f"{Style.BOLD}{Style.INFO}:: {mgr.name} ({len(pkgs)}){Style.RESET}")
             for pkg in pkgs:
                 # support various keys
                 name = pkg.get('name', 'unknown')
                 extra = pkg.get('version') or pkg.get('id') or pkg.get('origin') or ''
-                print(f"  {Style.GREEN}•{Style.RESET} {Style.BOLD}{name}{Style.RESET} {Style.DIM}({extra}){Style.RESET}")
+                print(f"  {Style.SUCCESS}•{Style.RESET} {Style.BOLD}{name}{Style.RESET} {Style.DIM}({extra}){Style.RESET}")
         else:
              print(f"{Style.DIM}No packages found in {mgr.name}{Style.RESET}")
 

@@ -16,13 +16,13 @@ from manager import ModuleManager
 class ColoredHelpFormatter(argparse.RawDescriptionHelpFormatter):
     def start_section(self, heading):
         if heading:
-            heading = f"{Style.BOLD}{Style.CYAN}{heading.title()}{Style.RESET}"
+            heading = f"{Style.BOLD}{Style.MAIN}{heading.title()}{Style.RESET}"
         super().start_section(heading)
 
     def _format_usage(self, usage, actions, groups, prefix):
         if prefix is None:
             prefix = 'usage: '
-        prefix = f"{Style.BOLD}{Style.GREEN}{prefix}{Style.RESET}"
+        prefix = f"{Style.BOLD}{Style.SUCCESS}{prefix}{Style.RESET}"
         return super()._format_usage(usage, actions, groups, prefix)
 
 def check_for_updates():
@@ -61,7 +61,7 @@ def check_for_updates():
 
         # 3. Compare
         if local_hash.lower() != remote_hash.lower():
-            print(f"{Style.BOLD}{Style.YELLOW}NOTICE: A new version of Mixtura is available!{Style.RESET}")
+            print(f"{Style.BOLD}{Style.WARNING}NOTICE: A new version of Mixtura is available!{Style.RESET}")
             print(f"Please update to the latest version.")
             print()
             
@@ -84,26 +84,26 @@ def main() -> None:
         mgr_help_str = "  (none installed)"
 
     main_epilog = f"""
-{Style.BOLD}{Style.CYAN}Available Managers:{Style.RESET}
+{Style.BOLD}{Style.MAIN}Available Managers:{Style.RESET}
 {mgr_help_str}
 
 {Style.BOLD}EXAMPLES:{Style.RESET}
-  {Style.GREEN}#{Style.RESET} Install packages from Nix (default)
+  {Style.SUCCESS}#{Style.RESET} Install packages from Nix (default)
   {Style.DIM}$ mixtura add micro git{Style.RESET}
 
-  {Style.GREEN}#{Style.RESET} Install packages from Flatpak
+  {Style.SUCCESS}#{Style.RESET} Install packages from Flatpak
   {Style.DIM}$ mixtura add flatpak#Spotify,"OBS Studio"{Style.RESET}
 
-  {Style.GREEN}#{Style.RESET} Install mixed packages
+  {Style.SUCCESS}#{Style.RESET} Install mixed packages
   {Style.DIM}$ mixtura add nixpkgs#vim flatpak#equibop{Style.RESET}
 
-  {Style.GREEN}#{Style.RESET} Search for packages
+  {Style.SUCCESS}#{Style.RESET} Search for packages
   {Style.DIM}$ mixtura search "web browser" flatpak#spotify{Style.RESET}
 
-  {Style.GREEN}#{Style.RESET} Upgrade all packages
+  {Style.SUCCESS}#{Style.RESET} Upgrade all packages
   {Style.DIM}$ mixtura upgrade{Style.RESET}
 
-  {Style.GREEN}#{Style.RESET} Run manager specific commands
+  {Style.SUCCESS}#{Style.RESET} Run manager specific commands
   {Style.DIM}$ mixtura nixpkgs --gc{Style.RESET}
 """
 

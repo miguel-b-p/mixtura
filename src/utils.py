@@ -7,13 +7,14 @@ class Style:
     BOLD = "\033[1m"
     DIM = "\033[2m"
 
-    RED = "\033[38;2;255;95;95m"
-    GREEN = "\033[38;2;0;230;170m"
-    YELLOW = "\033[38;2;255;225;100m"
-    BLUE = "\033[38;2;43;149;255m"
-    CYAN = "\033[38;2;108;221;253m"
+    # Logo Palette -> Semantic Names
+    ERROR = "\033[38;2;255;110;199m"     # Soup Pink (was RED)
+    SUCCESS = "\033[38;2;120;220;180m"   # Mint/Rainbow (was GREEN)
+    WARNING = "\033[38;2;210;160;100m"  # Wood/Gold (was YELLOW)
+    INFO = "\033[38;2;100;200;255m"    # Sparkle Blue (was BLUE)
+    MAIN = "\033[38;2;200;160;255m"    # Lavender/Mix (was CYAN)
 
-    ASCII = f"""{CYAN}
+    ASCII = f"""{MAIN}
     ▙▗▌ ▗      ▐              
     ▌▘▌ ▄  ▚▗▘ ▜▀  ▌ ▌ ▙▀▖ ▝▀▖
     ▌ ▌ ▐  ▗▚  ▐ ▖ ▌ ▌ ▌   ▞▀▌
@@ -21,19 +22,19 @@ class Style:
 {RESET}"""
 
 def log_info(msg: str) -> None:
-    print(f"{Style.BLUE}ℹ{Style.RESET}  {msg}")
+    print(f"{Style.INFO}ℹ{Style.RESET}  {msg}")
 
 def log_task(msg: str) -> None:
-    print(f"{Style.BOLD}{Style.CYAN}==>{Style.RESET} {msg}")
+    print(f"{Style.BOLD}{Style.MAIN}==>{Style.RESET} {msg}")
 
 def log_success(msg: str) -> None:
-    print(f"{Style.GREEN}✔{Style.RESET}  {msg}")
+    print(f"{Style.SUCCESS}✔{Style.RESET}  {msg}")
 
 def log_warn(msg: str) -> None:
-    print(f"{Style.YELLOW}⚠{Style.RESET}  {msg}")
+    print(f"{Style.WARNING}⚠{Style.RESET}  {msg}")
 
 def log_error(msg: str) -> None:
-    print(f"{Style.RED}✖  Error:{Style.RESET} {msg}", file=sys.stderr)
+    print(f"{Style.ERROR}✖  Error:{Style.RESET} {msg}", file=sys.stderr)
 
 # -----------------------------------------------------------------------------
 # System Helpers

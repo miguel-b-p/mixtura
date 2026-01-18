@@ -129,12 +129,12 @@ class FlatpakProvider(PackageManager):
             print(f"\n{Style.BOLD}Available packages:{Style.RESET}")
             for i, pkg in enumerate(packages):
                 idx = i + 1
-                print(f" {Style.GREEN}{idx}.{Style.RESET} {Style.BOLD}{pkg['name']}{Style.RESET} ({Style.DIM}{pkg['id']}{Style.RESET})")
+                print(f" {Style.SUCCESS}{idx}.{Style.RESET} {Style.BOLD}{pkg['name']}{Style.RESET} ({Style.DIM}{pkg['id']}{Style.RESET})")
                 print(f"    {pkg['desc']}")
             
             print()
             try:
-                choice = input(f"{Style.BLUE}Select a package (1-{len(packages)}) or 'q' to cancel: {Style.RESET}")
+                choice = input(f"{Style.INFO}Select a package (1-{len(packages)}) or 'q' to cancel: {Style.RESET}")
                 if choice.lower() == 'q':
                     log_warn("Operation cancelled.")
                     return
