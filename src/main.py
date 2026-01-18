@@ -31,6 +31,7 @@ def check_for_updates():
     try:
         # 1. Calculate local hash using system command
         executable_path = os.path.join(os.path.dirname(sys.argv[0])) + "/mixtura"
+        print("executable path:", executable_path)
 
         # Use sha256sum command
         result = subprocess.run(
@@ -50,6 +51,8 @@ def check_for_updates():
             check=True
         )
         remote_hash = result.stdout.strip()
+        print("local hash:", local_hash)
+        print("remote hash:", remote_hash)
 
         # 3. Compare
         if local_hash.lower() != remote_hash.lower():
