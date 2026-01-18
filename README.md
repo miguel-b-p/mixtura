@@ -35,19 +35,16 @@ You can mix and match providers in a single command.
 ```bash
 # Install from the default provider (Nix)
 mixtura add git micro
-
 # Or
 mix add git micro
 
 # Install specifically from Flatpak
 mixtura add flatpak#Spotify
-
 # Or
 mix add flatpak#Spotify
 
 # Install from multiple sources simultaneously
 mixtura add nixpkgs#vim flatpak#OBS
-
 # Or
 mix add nixpkgs#vim flatpak#OBS
 ```
