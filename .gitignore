@@ -1,0 +1,7 @@
+# ignore env files.
+.flox
+.env
+.venv
+
+# ignore python cache files.
+__pycache__

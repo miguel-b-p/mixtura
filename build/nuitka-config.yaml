@@ -1,0 +1,8 @@
+# Nuitka Package Configuration
+# See: https://nuitka.net/user-documentation/nuitka-package-config.html
+
+- module-name: "main"
+  options:
+    description: "Main application configuration"
+    # Add any specific package options here if needed later
+    # e.g., for handling data files or hidden imports
