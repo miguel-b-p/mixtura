@@ -130,22 +130,27 @@ def cmd_list(args: argparse.Namespace) -> None:
         log_warn("No package managers found.")
         return
 
+    first = True
     for mgr in managers_to_list:
         if not mgr.is_available():
             continue
+
+        if not first:
+            print()
+        first = False
             
         log_task(f"Fetching packages from {mgr.name}...")
         pkgs = mgr.list_packages()
         
         if pkgs:
-            print(f"\n{Style.BOLD}{Style.BLUE}:: {mgr.name} ({len(pkgs)}){Style.RESET}")
+            print(f"{Style.BOLD}{Style.BLUE}:: {mgr.name} ({len(pkgs)}){Style.RESET}")
             for pkg in pkgs:
                 # support various keys
                 name = pkg.get('name', 'unknown')
                 extra = pkg.get('version') or pkg.get('id') or pkg.get('origin') or ''
                 print(f"  {Style.GREEN}•{Style.RESET} {Style.BOLD}{name}{Style.RESET} {Style.DIM}({extra}){Style.RESET}")
         else:
-             print(f"\n{Style.DIM}No packages found in {mgr.name}{Style.RESET}")
+             print(f"{Style.DIM}No packages found in {mgr.name}{Style.RESET}")
 
 def cmd_search(args: argparse.Namespace) -> None:
     manager = ModuleManager.get_instance()
