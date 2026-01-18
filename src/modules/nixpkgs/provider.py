@@ -79,34 +79,99 @@ class NixProvider(PackageManager):
             packages = []
             elements = data.get("elements", {})
             
-            def _extract_version(store_paths: List[str]) -> str:
-                if not store_paths: return "unknown"
-                # Example: /nix/store/<hash>-<name>-<version>
-                path = store_paths[0]
+            def _resolve_version_fallback(store_path: str, pkg_name: str) -> str:
+                if not store_path or not pkg_name:
+                    return "unknown"
                 try:
-                     # Remove /nix/store/ and hash (32 chars) + dash
-                     # /nix/store/ is 11 chars. hash is 32. + 1 dash = 44 chars prefix usually
+                    # Run: nix-store --query --references <store_path> | grep <pkg_name>
+                    # We'll do the grep in python to avoid shell pipes security issues if any
+                    res = subprocess.run(
+                        ["nix-store", "--query", "--references", store_path],
+                        capture_output=True,
+                        text=True
+                    )
+                    if res.returncode != 0:
+                        return "unknown"
+                    
+                    # Output is list of /nix/store/hash-name-ver
+                    # We filter for ones containing pkg_name
+                    candidates = []
+                    for line in res.stdout.splitlines():
+                        if pkg_name in line:
+                            candidates.append(line.strip())
+                    
+                    # Attempt to parse version from candidates
+                    # Example candidate: /nix/store/78562fr80k3r1wp7djvxvmm8s5p9m50z-bottles-unwrapped-60.1
+                    # Strategies:
+                    # 1. Look for one that seems to end in version numbers
+                    # 2. Heuristic: take the one that is NOT just the same as input if possible, 
+                    #    or matches name-version pattern.
+                    
+                    found_version = "unknown"
+                    
+                    for candidate in candidates:
+                        # Extract the filename part
+                        parts = candidate.split('/')
+                        if len(parts) < 4: continue
+                        filename = parts[3] 
+                        
+                        # Remove hash (32 chars) + dash = 33 chars
+                        if len(filename) <= 33: continue
+                        name_ver = filename[33:]
+                        
+                        # We want to extract version. 
+                        # name_ver like "bottles-unwrapped-60.1" or "bottles-60.1-bwrap" or "bottles-cli-60.1-bwrap"
+                        
+                        # Try to find the version part
+                        # Heuristic from before: first dash followed by digit
+                        ver_candidate = "unknown"
+                        for i in range(len(name_ver)):
+                             if name_ver[i] == '-' and i + 1 < len(name_ver) and name_ver[i+1].isdigit():
+                                 ver_candidate = name_ver[i+1:]
+                                 break
+                        
+                        if ver_candidate != "unknown":
+                             # If we found a version, we might want to prefer the Main package if we can identify it,
+                             # but usually just getting ANY version is better than unknown.
+                             # If we find multiple, maybe pick the shortest one assuming it is the main package?
+                             # Or just return the first one found.
+                             return ver_candidate
+
+                    return found_version
+                except Exception:
+                    return "unknown"
+
+            def _extract_version(store_paths: List[str], pkg_name: str) -> str:
+                if not store_paths: return "unknown"
+                
+                # Try from the main store path first (fast)
+                path = store_paths[0]
+                version = "unknown"
+                try:
                      parts = path.split('/')
                      if len(parts) > 3 and parts[1] == 'nix' and parts[2] == 'store':
                          filename = parts[3]
-                         # Format: hash-name-version
-                         # Identifying where name ends and version starts is tricky.
-                         # Heuristic: Find the first dash followed by a digit.
                          name_ver = filename[33:] # skip hash and dash
                          
                          for i in range(len(name_ver)):
                              if name_ver[i] == '-' and i + 1 < len(name_ver) and name_ver[i+1].isdigit():
-                                 return name_ver[i+1:]
+                                 version = name_ver[i+1:]
+                                 break
                 except Exception:
                     pass
-                return "unknown"
+                
+                if version != "unknown":
+                    return version
+                    
+                # Fallback: query references
+                return _resolve_version_fallback(path, pkg_name)
 
             # Handle dict structure (common in newer Nix versions)
             if isinstance(elements, dict):
                 for name, details in elements.items():
                     origin = details.get("originalUrl") or details.get("attrPath", "unknown")
                     store_paths = details.get("storePaths", [])
-                    version = _extract_version(store_paths)
+                    version = _extract_version(store_paths, name)
                     packages.append({"name": name, "origin": origin, "version": version})
 
             # Fallback for potential list structure (older versions?)
@@ -115,7 +180,7 @@ class NixProvider(PackageManager):
                     attr_path = element.get("attrPath") or element.get("url", "unknown")
                     name = attr_path.split('.')[-1] if '.' in attr_path else attr_path
                     store_paths = element.get("storePaths", [])
-                    version = _extract_version(store_paths)
+                    version = _extract_version(store_paths, name)
                     packages.append({"name": name, "origin": attr_path, "version": version})
                     
             return packages
