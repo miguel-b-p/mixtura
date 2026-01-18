@@ -40,9 +40,11 @@ You can mix and match providers in a single command.
 
 ```bash
 # Install from the default provider (Nix)
-mixtura add git micro
-# Or
-mix add git micro
+mixtura add nixpkgs#git
+
+# Install with interactive search (if provider not specified)
+mixtura add git
+# > Searches all providers and prompts for selection
 
 # Install specifically from Flatpak
 mixtura add flatpak#Spotify
