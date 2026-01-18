@@ -24,8 +24,8 @@ class ColoredHelpFormatter(argparse.RawDescriptionHelpFormatter):
 def check_for_updates():
     """Checks if there is a new version available by comparing hashes."""
     # Only check if running as a compiled executable (Nuitka)
-    if not getattr(sys, 'frozen', False):
-        return
+    #if not getattr(sys, 'frozen', False):
+    #    return
 
     github_hash_url = "https://raw.githubusercontent.com/miguel-b-p/mixtura/refs/heads/master/bin/HASH"
     try:
