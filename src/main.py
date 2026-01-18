@@ -27,7 +27,6 @@ def check_for_updates():
         return
 
     github_hash_url = "https://raw.githubusercontent.com/miguel-b-p/mixtura/master/bin/HASH"
-    
     try:
         # 1. Calculate local hash
         executable_path = sys.executable
