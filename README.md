@@ -91,3 +91,10 @@ mixtura upgrade nixpkgs
 ```bash
 mixtura search "web browser" flatpak#spotify
 ```
+
+### Credits
+
+Special thanks to the following people for their feedback and tips on improving the project, both visually and in terms of flexibility:
+
+- [Leoni Frazão](https://github.com/Gameriano1)
+- [Chester Berkeley](https://github.com/pedroldepizzol)
