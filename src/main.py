@@ -62,8 +62,41 @@ def check_for_updates():
         # 3. Compare
         if local_hash.lower() != remote_hash.lower():
             print(f"{Style.BOLD}{Style.WARNING}NOTICE: A new version of Mixtura is available!{Style.RESET}")
-            print(f"Please update to the latest version.")
-            print()
+            
+            # Interactive update
+            try:
+                choice = input(f"Do you want to update to the latest version? ({Style.BOLD}y/N{Style.RESET}): ")
+            except EOFError:
+                choice = 'n'
+
+            if choice.lower() == 'y':
+                print(f"{Style.INFO}Downloading update...{Style.RESET}")
+                update_url = "https://raw.githubusercontent.com/miguel-b-p/mixtura/master/bin/mixtura"
+                
+                try:
+                    # Download new binary
+                    with urllib.request.urlopen(update_url) as response:
+                        new_content = response.read()
+                    
+                    # Write to a temp file first
+                    temp_path = executable_path + ".tmp"
+                    with open(temp_path, 'wb') as f:
+                        f.write(new_content)
+                    
+                    # Make executable
+                    os.chmod(temp_path, 0o755)
+                    
+                    # Atomically replace (this works on Linux even if file is busy)
+                    os.replace(temp_path, executable_path)
+                    
+                    print(f"{Style.SUCCESS}Update successful! Please restart Mixtura.{Style.RESET}")
+                    sys.exit(0)
+                    
+                except Exception as e:
+                    print(f"{Style.ERROR}Update failed: {e}{Style.RESET}")
+            else:
+                 print(f"Update skipped.")
+                 print()
             
     except Exception as e:
         # Fail silently on network errors or other issues to not disrupt usage
