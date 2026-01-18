@@ -4,7 +4,7 @@ set -e
 
 # Configuration
 INSTALL_DIR="$HOME/.local/bin"
-BINARY_URL="https://github.com/miguel-b-p/vinct/raw/refs/heads/master/bin/mixtura"
+BINARY_URL="https://github.com/miguel-b-p/mixtura/raw/refs/heads/master/bin/mixtura"
 BINARY_NAME="mixtura"
 TARGET_PATH="$INSTALL_DIR/$BINARY_NAME"
 # Colors

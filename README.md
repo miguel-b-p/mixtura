@@ -19,7 +19,7 @@ It reflects the project's core philosophy: it **mixes** and unifies disparate pa
 To install Mixtura, run the following command, which downloads the latest compiled binary and places it in your local binary directory.
 
 ```bash
-curl -fsSL https://github.com/miguel-b-p/vinct/raw/refs/heads/master/install.sh | bash
+curl -fsSL https://github.com/miguel-b-p/mixtura/raw/refs/heads/master/install.sh | bash
 ```
 
 Ensure that `$HOME/.local/bin` is in your shell's `PATH`.
