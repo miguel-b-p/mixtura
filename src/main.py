@@ -6,6 +6,7 @@ import subprocess
 import urllib.request
 import json
 import base64
+import ssl
 
 
 from utils import Style
@@ -45,8 +46,12 @@ def check_for_updates():
 
 
         # 2. Fetch remote hash
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
         req = urllib.request.Request(github_hash_url)
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, context=ctx) as response:
             data = json.loads(response.read().decode())
             content = data.get("content", "")
             remote_hash = base64.b64decode(content).decode().strip()
