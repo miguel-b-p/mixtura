@@ -2,6 +2,7 @@ import argparse
 import sys
 import hashlib
 import os
+import subprocess
 import urllib.request
 
 from utils import Style
@@ -22,17 +23,23 @@ class ColoredHelpFormatter(argparse.RawDescriptionHelpFormatter):
 
 def check_for_updates():
     """Checks if there is a new version available by comparing hashes."""
-    # Only check if running as a compiled executable
+    # Only check if running as a compiled executable (Nuitka)
+    if not getattr(sys, 'frozen', False):
+        return
 
     github_hash_url = "https://raw.githubusercontent.com/miguel-b-p/mixtura/master/bin/HASH"
     try:
-        # 1. Calculate local hash
+        # 1. Calculate local hash using system command
         executable_path = sys.executable
-        sha256_hash = hashlib.sha256()
-        with open(executable_path, "rb") as f:
-            for byte_block in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(byte_block)
-        local_hash = sha256_hash.hexdigest()
+        # Use sha256sum command
+        result = subprocess.run(
+            ["sha256sum", executable_path], 
+            capture_output=True, 
+            text=True, 
+            check=True
+        )
+        # Expected output format: "hash  filename"
+        local_hash = result.stdout.split()[0]
 
         # 2. Fetch remote hash
         with urllib.request.urlopen(github_hash_url, timeout=5) as response:
