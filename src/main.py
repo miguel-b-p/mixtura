@@ -1,5 +1,9 @@
 import argparse
 import sys
+import hashlib
+import os
+import urllib.request
+
 from utils import Style
 from commands import cmd_add, cmd_remove, cmd_upgrade, cmd_list, cmd_search
 from manager import ModuleManager
@@ -16,7 +20,40 @@ class ColoredHelpFormatter(argparse.RawDescriptionHelpFormatter):
         prefix = f"{Style.BOLD}{Style.GREEN}{prefix}{Style.RESET}"
         return super()._format_usage(usage, actions, groups, prefix)
 
+def check_for_updates():
+    """Checks if there is a new version available by comparing hashes."""
+    # Only check if running as a compiled executable
+    if not getattr(sys, 'frozen', False):
+        return
+
+    github_hash_url = "https://raw.githubusercontent.com/miguel-b-p/mixtura/master/bin/HASH"
+    
+    try:
+        # 1. Calculate local hash
+        executable_path = sys.executable
+        sha256_hash = hashlib.sha256()
+        with open(executable_path, "rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(byte_block)
+        local_hash = sha256_hash.hexdigest()
+
+        # 2. Fetch remote hash
+        with urllib.request.urlopen(github_hash_url, timeout=5) as response:
+            remote_hash = response.read().decode('utf-8').strip()
+
+        # 3. Compare
+        if local_hash.lower() != remote_hash.lower():
+            print(f"{Style.BOLD}{Style.YELLOW}NOTICE: A new version of Mixtura is available!{Style.RESET}")
+            print(f"Please update to the latest version.")
+            print()
+            
+    except Exception:
+        # Fail silently on network errors or other issues to not disrupt usage
+        pass
+
 def main() -> None:
+    check_for_updates()
+
     # Ensure modules are discovered
     manager = ModuleManager.get_instance()
     available_managers = manager.get_all_managers()
