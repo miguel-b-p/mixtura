@@ -10,8 +10,8 @@ OUTPUT_DIR="../bin"
 # Version/Metadata Information
 COMPANY_NAME="Mixtura Project"
 PRODUCT_NAME="Mixtura"
-FILE_VERSION="1.0.0.0"
-PRODUCT_VERSION="1.0.0.0"
+FILE_VERSION="1.0"
+PRODUCT_VERSION="1.0"
 FILE_DESCRIPTION="Mixtura Package Manager"
 COPYRIGHT_TEXT="Copyright (c) 2025 Mixtura Project"
 
