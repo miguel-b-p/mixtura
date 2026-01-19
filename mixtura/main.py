@@ -1,16 +1,11 @@
 import argparse
 import sys
-import hashlib
-import os
-import subprocess
-import urllib.request
-import json
-import base64
-import ssl
 
 from mixtura.utils import Style
 from mixtura.commands import cmd_add, cmd_remove, cmd_upgrade, cmd_list, cmd_search
 from mixtura.manager import ModuleManager
+from mixtura.update import check_for_updates
+
 
 class ColoredHelpFormatter(argparse.RawDescriptionHelpFormatter):
     def start_section(self, heading):
@@ -23,84 +18,6 @@ class ColoredHelpFormatter(argparse.RawDescriptionHelpFormatter):
             prefix = 'usage: '
         prefix = f"{Style.BOLD}{Style.SUCCESS}{prefix}{Style.RESET}"
         return super()._format_usage(usage, actions, groups, prefix)
-
-def check_for_updates():
-    """Checks if there is a new version available by comparing hashes."""
-    # Only check if running as a compiled executable (Nuitka)
-    #if not getattr(sys, 'frozen', False):
-    #    return
-
-    github_hash_url = "https://api.github.com/repos/miguel-b-p/mixtura/contents/bin/HASH"
-    try:
-        # 1. Calculate local hash using system command
-        executable_path = os.path.join(os.path.dirname(sys.argv[0])) + "/mixtura"
-        # print("executable path:", executable_path)
-
-        # Use hashlib
-        sha256_hash = hashlib.sha256()
-        with open(executable_path, "rb") as f:
-            for byte_block in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(byte_block)
-        local_hash = sha256_hash.hexdigest()
-
-
-        # 2. Fetch remote hash
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-
-        req = urllib.request.Request(github_hash_url)
-        with urllib.request.urlopen(req, context=ctx) as response:
-            data = json.loads(response.read().decode())
-            content = data.get("content", "")
-            remote_hash = base64.b64decode(content).decode().strip()
-
-        # print("local hash:", local_hash)
-        # print("remote hash:", remote_hash)
-
-        # 3. Compare
-        if local_hash.lower() != remote_hash.lower():
-            print(f"{Style.BOLD}{Style.WARNING}NOTICE: A new version of Mixtura is available!{Style.RESET}")
-            
-            # Interactive update
-            try:
-                choice = input(f"Do you want to update to the latest version? ({Style.BOLD}y/N{Style.RESET}): ")
-            except EOFError:
-                choice = 'n'
-
-            if choice.lower() == 'y':
-                print(f"{Style.INFO}Downloading update...{Style.RESET}")
-                update_url = "https://raw.githubusercontent.com/miguel-b-p/mixtura/master/bin/mixtura"
-                
-                try:
-                    # Download new binary
-                    with urllib.request.urlopen(update_url) as response:
-                        new_content = response.read()
-                    
-                    # Write to a temp file first
-                    temp_path = executable_path + ".tmp"
-                    with open(temp_path, 'wb') as f:
-                        f.write(new_content)
-                    
-                    # Make executable
-                    os.chmod(temp_path, 0o755)
-                    
-                    # Atomically replace (this works on Linux even if file is busy)
-                    os.replace(temp_path, executable_path)
-                    
-                    print(f"{Style.SUCCESS}Update successful! Please restart Mixtura.{Style.RESET}")
-                    sys.exit(0)
-                    
-                except Exception as e:
-                    print(f"{Style.ERROR}Update failed: {e}{Style.RESET}")
-            else:
-                 print(f"Update skipped.")
-                 print()
-            
-    except Exception as e:
-        # Fail silently on network errors or other issues to not disrupt usage
-        # print(e)
-        pass
 
 def main() -> None:
     check_for_updates()

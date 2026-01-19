@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-# Ensure we are in the build directory
-cd "$(dirname "$0")"
+# Move to the project root directory (parent of build/)
+cd "$(dirname "$0")/.."
 
-# Define paths
-SOURCE_FILE="../mixtura/main.py"
-OUTPUT_DIR="../bin"
-VERSION_FILE="../bin/VERSION"
+# Define paths (now relative to project root)
+SOURCE_FILE="mixtura/main.py"
+OUTPUT_DIR="bin"
+VERSION_FILE="bin/VERSION"
 
 # Read current version and increment minor version
 CURRENT_VERSION=$(cat "$VERSION_FILE")
@@ -25,10 +25,10 @@ sed -i "s/^FILE_VERSION=\".*\"/FILE_VERSION=\"$NEW_VERSION\"/" "$0"
 sed -i "s/^PRODUCT_VERSION=\".*\"/PRODUCT_VERSION=\"$NEW_VERSION\"/" "$0"
 
 # Update flake.nix
-sed -i "s/version = \"[0-9]*\.[0-9]*\"/version = \"$NEW_VERSION\"/" "../flake.nix"
+sed -i "s/version = \"[0-9]*\.[0-9]*\"/version = \"$NEW_VERSION\"/" "flake.nix"
 
 # Update pyproject.toml
-sed -i "s/^version = \"[0-9]*\.[0-9]*\"/version = \"$NEW_VERSION\"/" "../pyproject.toml"
+sed -i "s/^version = \"[0-9]*\.[0-9]*\"/version = \"$NEW_VERSION\"/" "pyproject.toml"
 
 echo "Version updated successfully in all files!"
 
@@ -52,9 +52,9 @@ python3 -m nuitka \
     --copyright="$COPYRIGHT_TEXT" \
     --output-dir="$OUTPUT_DIR" \
     --output-filename="mixtura" \
-    --remove-output \
     --show-progress \
-    --include-package=modules \
+    --include-package=mixtura \
+    --include-data-files=bin/VERSION=mixtura/VERSION \
     "$SOURCE_FILE"
 
 echo "Build complete. Executable should be in $OUTPUT_DIR/mixtura"

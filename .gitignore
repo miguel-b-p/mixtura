@@ -6,6 +6,11 @@
 # ignore flake.lock
 flake.lock
 
+# ignore build files
+main.build
+main.dist
+main.onefile-build
+
 # ignore python cache files.
 __pycache__
 *.egg-info
