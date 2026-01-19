@@ -22,15 +22,7 @@ It reflects the project's core philosophy: it **mixes** and unifies disparate pa
 
 ## Installation
 
-To install Mixtura, run the following command, which downloads the latest compiled binary and places it in your local binary directory.
-
-```bash
-curl -fsSL https://github.com/miguel-b-p/mixtura/raw/refs/heads/master/install.sh | bash
-```
-
-Ensure that `$HOME/.local/bin` is in your shell's `PATH`.
-
-For more installation options (Nix Flake, pip, etc.), see the [Installation Guide](docs/Installation.md).
+To install Mixtura, it's recommended you to see the [Installation Guide](docs/Installation.md).
 
 ## Usage
 
