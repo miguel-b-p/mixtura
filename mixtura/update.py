@@ -48,7 +48,7 @@ def check_for_updates():
             
             # If running as Python module, only show notice (can't self-update)
             if not is_compiled:
-                print(f"{Style.INFO}Update via: pip install --upgrade mixtura{Style.RESET}")
+                print(f"{Style.INFO}Update via: pip install --upgrade mixtura (Soon on PyPI){Style.RESET}")
                 print()
                 return
             
@@ -105,5 +105,5 @@ def check_for_updates():
             
     except Exception as e:
         # Fail silently on network errors or other issues to not disrupt usage
-        print(e)
+        # print(e)
         pass
