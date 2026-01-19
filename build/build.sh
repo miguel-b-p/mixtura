@@ -17,8 +17,9 @@ NEW_VERSION="${MAJOR}.${NEW_MINOR}"
 
 echo "Updating version: $CURRENT_VERSION -> $NEW_VERSION"
 
-# Update VERSION file
+# Update VERSION files
 echo "$NEW_VERSION" >"$VERSION_FILE"
+echo "$NEW_VERSION" >"mixtura/VERSION"
 
 # Update this script (build.sh)
 sed -i "s/^FILE_VERSION=\".*\"/FILE_VERSION=\"$NEW_VERSION\"/" "$0"

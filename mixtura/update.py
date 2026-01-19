@@ -9,11 +9,16 @@ import ssl
 from mixtura.utils import Style
 
 
+def is_nuitka_compiled():
+    """Detects if the application is running as a Nuitka compiled executable."""
+    # Nuitka sets __compiled__ attribute when compiled
+    return "__compiled__" in dir() or getattr(sys, 'frozen', False) or hasattr(sys, '_MEIPASS')
+
+
 def check_for_updates():
     """Checks if there is a new version available by comparing versions."""
-    # Only check if running as a compiled executable (Nuitka)
-    #if not getattr(sys, 'frozen', False):
-    #    return
+    is_compiled = is_nuitka_compiled()
+    
     github_version_url = "https://api.github.com/repos/miguel-b-p/mixtura/contents/bin/VERSION"
     github_hash_url = "https://api.github.com/repos/miguel-b-p/mixtura/contents/bin/HASH"
     
@@ -41,7 +46,13 @@ def check_for_updates():
         if local_version != remote_version:
             print(f"{Style.BOLD}{Style.WARNING}NOTICE: A new version of Mixtura is available! ({local_version} → {remote_version}){Style.RESET}")
             
-            # Interactive update
+            # If running as Python module, only show notice (can't self-update)
+            if not is_compiled:
+                print(f"{Style.INFO}Update via: pip install --upgrade mixtura{Style.RESET}")
+                print()
+                return
+            
+            # Interactive update (only for compiled executables)
             try:
                 choice = input(f"Do you want to update to the latest version? ({Style.BOLD}y/N{Style.RESET}): ")
             except EOFError:
@@ -94,5 +105,5 @@ def check_for_updates():
             
     except Exception as e:
         # Fail silently on network errors or other issues to not disrupt usage
-        # print(e)
+        print(e)
         pass
