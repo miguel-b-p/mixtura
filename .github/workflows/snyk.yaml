@@ -1,0 +1,29 @@
+name: Example workflow for Python using Snyk
+on: push
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/python@master
+        continue-on-error: true # To make sure that SARIF upload gets called
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: code test
+          args: --sarif-file-output=snyk.sarif
+      - name: Count total number of vulnerabilities
+        run: |
+          RESULTS_LENGTH=$(jq '.runs[0].results | length' snyk.sarif)
+          echo "RESULTS_LENGTH=$RESULTS_LENGTH" >> $GITHUB_ENV
+          echo $RESULTS_LENGTH
+      - name: Pass_or_Fail_the_job
+        run: |
+            if [ "$RESULTS_LENGTH" != 0 ]; then
+                echo "Job Failed"
+                exit 1
+            else
+                echo "Pass"
+            fi
