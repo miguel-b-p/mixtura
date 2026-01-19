@@ -3,8 +3,9 @@ import importlib.util
 import sys
 import glob
 from typing import Dict, List, Type, Any
-from core import PackageManager
-from utils import log_warn, log_info
+
+from mixtura.core import PackageManager
+from mixtura.utils import log_warn, log_info
 
 class ModuleManager:
     _instance = None
@@ -24,7 +25,7 @@ class ModuleManager:
         Dynamically discovers and loads modules from src/modules/*
         Uses pkgutil to ensure compatibility with Nuitka/frozen builds and pure Python.
         """
-        import modules
+        from mixtura import modules
         import pkgutil
         
         # Iterate over all packages in the modules directory

@@ -8,10 +8,9 @@ import json
 import base64
 import ssl
 
-
-from utils import Style
-from commands import cmd_add, cmd_remove, cmd_upgrade, cmd_list, cmd_search
-from manager import ModuleManager
+from mixtura.utils import Style
+from mixtura.commands import cmd_add, cmd_remove, cmd_upgrade, cmd_list, cmd_search
+from mixtura.manager import ModuleManager
 
 class ColoredHelpFormatter(argparse.RawDescriptionHelpFormatter):
     def start_section(self, heading):

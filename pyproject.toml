@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mixtura"
+version = "0.1.0"
+description = "Mixed together. Running everywhere."
+authors = [
+  { name = "Miguel Batista Pinotti", email = "miguelpinotty@gmail.com" },
+]
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = []
+
+[project.scripts]
+mixtura = "mixtura.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mixtura*"]
+namespaces = false

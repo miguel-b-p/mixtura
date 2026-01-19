@@ -1,7 +1,8 @@
 import argparse
 from typing import Dict, List
-from utils import log_task, log_info, log_success, log_warn, log_error, Style
-from manager import ModuleManager
+
+from mixtura.utils import log_task, log_info, log_success, log_warn, log_error, Style
+from mixtura.manager import ModuleManager
 
 def _get_manager_or_warn(name: str):
     mgr = ModuleManager.get_instance().get_manager(name)

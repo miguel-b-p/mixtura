@@ -1,9 +1,10 @@
 import shutil
 import subprocess
-from typing import List, Dict, Any, Optional
 import argparse
-from core import PackageManager
-from utils import log_info, log_error, log_warn, log_task, run, Style
+from typing import List, Dict, Any, Optional
+
+from mixtura.core import PackageManager
+from mixtura.utils import log_info, log_error, log_warn, log_task, run, Style
 
 class HomebrewProvider(PackageManager):
     @property

@@ -4,8 +4,9 @@ import json
 import sys
 import argparse
 from typing import List, Dict, Any, Optional
-from core import PackageManager
-from utils import log_info, log_error, log_warn, run, Style
+
+from mixtura.core import PackageManager
+from mixtura.utils import log_info, log_error, log_warn, run, Style
 
 class NixProvider(PackageManager):
     @property
