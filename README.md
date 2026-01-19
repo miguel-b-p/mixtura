@@ -2,9 +2,9 @@
 
 <div align="center">
 <p>
-  <img src="assets/logo.png" width="300" alt="Mixtura Logo">
+  <img src="assets/mixtura_logo.svg" width="500" alt="Mixtura Logo">
 
-  <h2>Mixed together. Running everywhere.</h2>
+  <h2>Mix your favorite apps in one place.</h2>
 </p>
 </div>
 
