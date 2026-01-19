@@ -4,14 +4,37 @@
 cd "$(dirname "$0")"
 
 # Define paths
-SOURCE_FILE="../src/main.py"
+SOURCE_FILE="../mixtura/main.py"
 OUTPUT_DIR="../bin"
+VERSION_FILE="../bin/VERSION"
+
+# Read current version and increment minor version
+CURRENT_VERSION=$(cat "$VERSION_FILE")
+MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+NEW_MINOR=$((MINOR + 1))
+NEW_VERSION="${MAJOR}.${NEW_MINOR}"
+
+echo "Updating version: $CURRENT_VERSION -> $NEW_VERSION"
+
+# Update VERSION file
+echo "$NEW_VERSION" >"$VERSION_FILE"
+
+# Update this script (build.sh)
+sed -i "s/^FILE_VERSION=\".*\"/FILE_VERSION=\"$NEW_VERSION\"/" "$0"
+sed -i "s/^PRODUCT_VERSION=\".*\"/PRODUCT_VERSION=\"$NEW_VERSION\"/" "$0"
+
+# Update flake.nix
+sed -i "s/version = \"[0-9]*\.[0-9]*\"/version = \"$NEW_VERSION\"/" "../flake.nix"
+
+# Update pyproject.toml
+sed -i "s/^version = \"[0-9]*\.[0-9]*\"/version = \"$NEW_VERSION\"/" "../pyproject.toml"
+
+echo "Version updated successfully in all files!"
 
 # Version/Metadata Information
 COMPANY_NAME="Mixtura Project"
 PRODUCT_NAME="Mixtura"
-FILE_VERSION="1.0"
-PRODUCT_VERSION="1.0"
 FILE_DESCRIPTION="Mixtura Package Manager"
 COPYRIGHT_TEXT="Copyright (c) 2025 Mixtura Project"
 
@@ -23,8 +46,8 @@ python3 -m nuitka \
     --lto=yes \
     --company-name="$COMPANY_NAME" \
     --product-name="$PRODUCT_NAME" \
-    --file-version="$FILE_VERSION" \
-    --product-version="$PRODUCT_VERSION" \
+    --file-version="$NEW_VERSION" \
+    --product-version="$NEW_VERSION" \
     --file-description="$FILE_DESCRIPTION" \
     --copyright="$COPYRIGHT_TEXT" \
     --output-dir="$OUTPUT_DIR" \
