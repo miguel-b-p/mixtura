@@ -78,7 +78,7 @@ mixtura remove firefox
 
 Upgrading can be performed globally or targeted to a specific provider.
 
-```bash
+```bash 
 # Upgrade all packages across all providers
 mixtura upgrade
 
