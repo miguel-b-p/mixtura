@@ -30,6 +30,8 @@ curl -fsSL https://github.com/miguel-b-p/mixtura/raw/refs/heads/master/install.s
 
 Ensure that `$HOME/.local/bin` is in your shell's `PATH`.
 
+For more installation options (Nix Flake, pip, etc.), see the [Installation Guide](docs/Installation.md).
+
 ## Usage
 
 The syntax is designed to be intuitive and predictable. The command is `mixtura` or `mix`.
