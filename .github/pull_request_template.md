@@ -1,12 +1,3 @@
----
-name: Pull request template
-about: Instructions to create a PR
-title: ''
-labels: ''
-assignees: ''
-
----
-
 ## Description
 
 Please include a summary of the change and which issue is fixed.
