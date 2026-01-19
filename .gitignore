@@ -3,6 +3,9 @@
 .env
 .venv
 
+# ignore flake.lock
+flake.lock
+
 # ignore python cache files.
 __pycache__
 *.egg-info
