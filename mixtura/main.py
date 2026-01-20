@@ -2,7 +2,7 @@ import argparse
 import sys
 
 from mixtura.utils import Style
-from mixtura.commands import cmd_add, cmd_remove, cmd_upgrade, cmd_list, cmd_search
+from mixtura.commands import cmd_add, cmd_remove, cmd_upgrade, cmd_list, cmd_search, cmd_clean
 from mixtura.manager import ModuleManager
 from mixtura.update import check_for_updates
 
@@ -155,6 +155,20 @@ def main() -> None:
         help="Show all search results instead of filtering by exact match"
     )
     p_search.set_defaults(func=cmd_search)
+
+    # CLEAN
+    p_clean = sub.add_parser(
+        "clean", 
+        help="Clean up unused packages and cached data",
+        description="Performs garbage collection on package managers to free up disk space.", 
+        formatter_class=ColoredHelpFormatter
+    )
+    p_clean.add_argument(
+        "modules", 
+        nargs="*", 
+        help="Specific modules to clean (e.g. 'nixpkgs', 'flatpak'). Empty = clean all."
+    )
+    p_clean.set_defaults(func=cmd_clean)
 
     # Register Module Subcommands
     for mgr in available_managers:

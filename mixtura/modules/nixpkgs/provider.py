@@ -229,3 +229,11 @@ class NixProvider(PackageManager):
         except Exception as e:
             log_warn(f"Nix search failed: {e}")
             return []
+
+    def clean(self) -> None:
+        if not self.is_available():
+            log_error("Nix is not installed.")
+            return
+        log_info("Running Nix garbage collection...")
+        run(["nix-collect-garbage", "-d"])
+

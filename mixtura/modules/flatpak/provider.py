@@ -203,3 +203,11 @@ class FlatpakProvider(PackageManager):
 
         except Exception as e:
             log_error(f"An error occurred: {e}")
+
+    def clean(self) -> None:
+        if not self.is_available():
+            log_error("Flatpak is not installed.")
+            return
+        log_info("Removing unused Flatpak packages...")
+        run(["flatpak", "uninstall", "--unused", "-y"])
+

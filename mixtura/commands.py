@@ -419,3 +419,31 @@ def cmd_search(args: argparse.Namespace) -> None:
                          print(f"    {desc}")
              else:
                  log_warn(f"No results for '{q}'")
+
+
+def cmd_clean(args: argparse.Namespace) -> None:
+    manager = ModuleManager.get_instance()
+    
+    modules = getattr(args, 'modules', [])
+    
+    if not modules:
+        # Clean all available providers
+        log_task("Cleaning all available providers...")
+        for mgr in manager.get_all_managers():
+            if mgr.is_available():
+                log_info(f"Cleaning {mgr.name}...")
+                mgr.clean()
+        log_success("Clean complete.")
+        return
+    
+    # Clean specific providers
+    for mod_name in modules:
+        mgr = _get_manager_or_warn(mod_name)
+        if mgr and mgr.is_available():
+            log_task(f"Cleaning {mgr.name}...")
+            mgr.clean()
+        elif mgr:
+            log_error(f"Provider '{mgr.name}' is not available.")
+    
+    log_success("Clean process finished.")
+

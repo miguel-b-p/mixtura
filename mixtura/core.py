@@ -52,6 +52,14 @@ class PackageManager(ABC):
         """
         pass
 
+    @abstractmethod
+    def clean(self) -> None:
+        """
+        Clean up unused packages and cached data.
+        This performs garbage collection specific to each package manager.
+        """
+        pass
+
     def setup_parser(self, parser: argparse.ArgumentParser) -> None:
         """
         Configure an argparse subparser for this package manager.

@@ -154,3 +154,11 @@ class HomebrewProvider(PackageManager):
         except Exception as e:
             log_warn(f"Homebrew search failed: {e}")
             return []
+
+    def clean(self) -> None:
+        if not self.is_available():
+            log_error("Homebrew is not installed.")
+            return
+        log_info("Running Homebrew cleanup...")
+        run(["brew", "cleanup"])
+
