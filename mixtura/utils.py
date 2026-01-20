@@ -2,6 +2,21 @@ import sys
 import subprocess
 from typing import List
 
+
+class CommandError(Exception):
+    """
+    Exception raised when a subprocess command fails.
+    
+    This replaces the previous behavior of calling sys.exit() directly,
+    allowing callers to catch and handle errors gracefully (e.g., continue
+    installing other packages even if one fails).
+    """
+    def __init__(self, message: str, returncode: int = 1, cmd: str = ""):
+        super().__init__(message)
+        self.returncode = returncode
+        self.cmd = cmd
+
+
 class Style:
     RESET = "\033[0m"
     BOLD = "\033[1m"
@@ -21,6 +36,7 @@ class Style:
     ▘ ▘ ▀▘ ▘ ▘  ▀  ▝▀▘ ▘   ▝▀▘
 {RESET}"""
 
+
 def log_info(msg: str) -> None:
     print(f"{Style.INFO}ℹ{Style.RESET}  {msg}")
 
@@ -36,12 +52,23 @@ def log_warn(msg: str) -> None:
 def log_error(msg: str) -> None:
     print(f"{Style.ERROR}✖  Error:{Style.RESET} {msg}", file=sys.stderr)
 
+
 # -----------------------------------------------------------------------------
 # System Helpers
 # -----------------------------------------------------------------------------
 
 def run(cmd: List[str], silent: bool = False, check_warnings: bool = False) -> None:
-    """Executes a subprocess command with visual error handling."""
+    """
+    Execute a subprocess command with visual feedback.
+    
+    Args:
+        cmd: Command and arguments as a list
+        silent: If True, don't print the command being run
+        check_warnings: If True, capture output and check for warning patterns
+    
+    Raises:
+        CommandError: If the command fails (non-zero exit code)
+    """
     cmd_str = " ".join(cmd)
     
     if not silent:
@@ -66,42 +93,16 @@ def run(cmd: List[str], silent: bool = False, check_warnings: bool = False) -> N
             subprocess.run(cmd, check=True)
 
     except subprocess.CalledProcessError as e:
-        print() # Blank line to separate
+        print()  # Blank line to separate
         log_error(f"Failed to execute command.")
         log_info(f"Command: {cmd_str}")
         log_info(f"Exit code: {e.returncode}")
-        sys.exit(e.returncode)
+        raise CommandError(
+            f"Command failed with exit code {e.returncode}",
+            returncode=e.returncode,
+            cmd=cmd_str
+        ) from e
     except KeyboardInterrupt:
         print()
         log_warn("Operation cancelled by user.")
-        sys.exit(130)
-
-def parse_package_args(packages: List[str]) -> tuple[List[str], List[str]]:
-    """
-    Parses a list of package arguments, handling prefixes and splitting by comma.
-    Returns a tuple (nix_packages, flatpak_packages).
-    
-    Supported formats:
-      - pkg1,pkg2 (defaults to nixpkgs)
-      - nixpkgs#pkg1,pkg2
-      - flatpak#pkg1,pkg2
-    """
-    nix_pkgs = []
-    flatpak_pkgs = []
-
-    for arg in packages:
-        if arg.startswith("flatpak#"):
-            # Strip prefix and split by comma
-            content = arg.split("#", 1)[1]
-            items = [p.strip() for p in content.split(",") if p.strip()]
-            flatpak_pkgs.extend(items)
-        elif arg.startswith("nixpkgs#"):
-            content = arg.split("#", 1)[1]
-            items = [p.strip() for p in content.split(",") if p.strip()]
-            nix_pkgs.extend(items)
-        else:
-            # Default to nixpkgs, just split by comma
-            items = [p.strip() for p in arg.split(",") if p.strip()]
-            nix_pkgs.extend(items)
-            
-    return nix_pkgs, flatpak_pkgs
+        raise CommandError("Operation cancelled by user.", returncode=130, cmd=cmd_str)

@@ -2,10 +2,13 @@ import argparse
 import fnmatch
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Union
 
-from mixtura.utils import log_task, log_info, log_success, log_warn, log_error, Style
+from mixtura.utils import log_task, log_info, log_success, log_warn, log_error, Style, CommandError
 from mixtura.manager import ModuleManager
+from mixtura.models import Package
+from mixtura.parser import group_by_provider
+from mixtura.ui import display_package_list, select_package, print_results_summary
 
 def _get_manager_or_warn(name: str):
     mgr = ModuleManager.get_instance().get_manager(name)
@@ -13,27 +16,38 @@ def _get_manager_or_warn(name: str):
         log_warn(f"Package manager '{name}' is not available or not found.")
     return mgr
 
-def _filter_results_smart(results: List[Dict[str, Any]], pattern: str, show_all: bool) -> List[Dict[str, Any]]:
+def _filter_results_smart(
+    results: List[Union[Package, Dict[str, Any]]], 
+    pattern: str, 
+    show_all: bool
+) -> List[Union[Package, Dict[str, Any]]]:
     """
     Filter search results based on the pattern.
     
     - If show_all is True: returns all results (current behavior)
     - If pattern contains wildcards (* or ?): uses glob pattern matching
     - Otherwise: prioritizes exact name match, falls back to all results
+    
+    Works with both Package objects and legacy dicts.
     """
     if show_all or not results:
         return results
+    
+    def get_name(r: Union[Package, dict]) -> str:
+        if hasattr(r, 'name'):
+            return r.name
+        return r.get('name', '')
     
     # Check if pattern has wildcards
     if '*' in pattern or '?' in pattern:
         # Convert glob pattern to regex
         regex_pattern = fnmatch.translate(pattern)
         regex = re.compile(regex_pattern, re.IGNORECASE)
-        filtered = [r for r in results if regex.match(r.get('name', ''))]
+        filtered = [r for r in results if regex.match(get_name(r))]
         return filtered if filtered else results
     
     # Exact match first
-    exact = [r for r in results if r.get('name', '').lower() == pattern.lower()]
+    exact = [r for r in results if get_name(r).lower() == pattern.lower()]
     if exact:
         return exact
     
@@ -81,43 +95,31 @@ def cmd_add(args: argparse.Namespace) -> None:
                 show_all = getattr(args, 'all', False)
                 results = _filter_results_smart(results, item, show_all)
                 
-                # Interactive Selection
-                print(f"\n{Style.BOLD}Found {len(results)} matches for '{item}':{Style.RESET}")
+                # Use UI module for display
+                display_package_list(results, f"Found {len(results)} matches for '{item}'")
                 
-                for i, res in enumerate(results):
-                    idx = i + 1
-                    name = res.get('name', 'unknown')
-                    prov = res.get('provider', 'unknown')
-                    ver = res.get('version', '')
-                    desc = res.get('description', '')[:60]
-                    if len(res.get('description', '')) > 60: desc += "..."
-                    
-                    print(f" {Style.SUCCESS}{idx}.{Style.RESET} {Style.BOLD}{name}{Style.RESET} {Style.DIM}({prov} {ver}){Style.RESET}")
-                    if desc:
-                        print(f"    {desc}")
+                # Use UI module for selection
+                selected_list = select_package(results, "Select a package to add")
                 
-                print()
-                try:
-                    choice = input(f"{Style.INFO}Select a package to add (1-{len(results)}) or 's' to skip: {Style.RESET}")
-                    if choice.lower() == 's' or choice.lower() == 'q':
-                        print("Skipping...")
-                        continue
-                    
-                    choice_idx = int(choice) - 1
-                    if 0 <= choice_idx < len(results):
-                        selected = results[choice_idx]
-                        prov = selected['provider']
-                        pkg_id = selected.get('id') or selected.get('name')
-                        
-                        if prov not in packages_to_install:
-                            packages_to_install[prov] = []
-                        
-                        packages_to_install[prov].append(pkg_id)
-                        log_info(f"Selected {selected['name']} from {prov}")
-                    else:
-                        log_error("Invalid selection.")
-                except ValueError:
-                    log_error("Invalid input.")
+                if selected_list is None:
+                    # Invalid input
+                    continue
+                elif not selected_list:
+                    # User skipped
+                    print("Skipping...")
+                    continue
+                
+                selected = selected_list[0]
+                # Handle both Package objects and dicts
+                prov = selected.provider if hasattr(selected, 'provider') else selected.get('provider', 'unknown')
+                pkg_id = selected.id if hasattr(selected, 'id') else (selected.get('id') or selected.get('name'))
+                pkg_name = selected.name if hasattr(selected, 'name') else selected.get('name', 'unknown')
+                
+                if prov not in packages_to_install:
+                    packages_to_install[prov] = []
+                
+                packages_to_install[prov].append(pkg_id)
+                log_info(f"Selected {pkg_name} from {prov}")
 
     # Proceed with installation (parallel)
     if not packages_to_install:
@@ -194,21 +196,23 @@ def cmd_remove(args: argparse.Namespace) -> None:
             for item in items:
                 log_task(f"Searching for installed package '{Style.BOLD}{item}{Style.RESET}'...")
                 
-                matches = []
+                matches: List[Union[Package, dict]] = []
                 for mgr in manager.get_all_managers():
                     if not mgr.is_available():
                         continue
                     
                     try:
-                        installed = mgr.list_packages() # Assuming this is reasonably fast
+                        installed = mgr.list_packages()
                         for pkg in installed:
-                            # Fuzzy matching or exact? 
-                            # User said "similar names", so substring match is good.
-                            # But we should prioritize exact match if possible?
-                            p_name = pkg.get('name', '')
+                            # Get package name (works with Package objects and dicts)
+                            p_name = pkg.name if hasattr(pkg, 'name') else pkg.get('name', '')
                             if item.lower() in p_name.lower():
-                                pkg['provider'] = mgr.name
-                                matches.append(pkg)
+                                # Ensure provider is set
+                                if hasattr(pkg, 'provider'):
+                                    matches.append(pkg)
+                                else:
+                                    pkg['provider'] = mgr.name
+                                    matches.append(pkg)
                     except Exception as e:
                         log_warn(f"Failed to list packages from {mgr.name}: {e}")
 
@@ -217,17 +221,15 @@ def cmd_remove(args: argparse.Namespace) -> None:
                     continue
                 
                 # Filter out packages that are already selected for removal
-                # from previous arguments or searches in this same command
                 filtered_matches = []
                 for m in matches:
-                    prov = m['provider']
-                    pid = m.get('id') or m.get('name')
+                    prov = m.provider if hasattr(m, 'provider') else m.get('provider', '')
+                    pid = (m.id if hasattr(m, 'id') else m.get('id')) or (m.name if hasattr(m, 'name') else m.get('name'))
                     # Check if already in our scheduled list
                     if pid not in packages_to_remove.get(prov, []):
                         filtered_matches.append(m)
                 
                 if not filtered_matches:
-                    # If we found matches but they are all already selected, just skip
                     if len(matches) > 0:
                         log_info(f"Matches for '{item}' are already selected for removal. Skipping prompt.")
                     continue
@@ -238,66 +240,49 @@ def cmd_remove(args: argparse.Namespace) -> None:
                 show_all = getattr(args, 'all', False)
                 matches = _filter_results_smart(matches, item, show_all)
 
-                print(f"\n{Style.BOLD}Found {len(matches)} installed matches for '{item}':{Style.RESET}")
+                # Use UI module for display
+                display_package_list(matches, f"Found {len(matches)} installed matches for '{item}'")
                 
-                for i, res in enumerate(matches):
-                    idx = i + 1
-                    name = res.get('name', 'unknown')
-                    prov = res.get('provider', 'unknown')
-                    ver = res.get('version', '')
-                    # Some list_packages implementation might not give desc, that's fine.
-                    
-                    print(f" {Style.SUCCESS}{idx}.{Style.RESET} {Style.BOLD}{name}{Style.RESET} {Style.DIM}({prov} {ver}){Style.RESET}")
+                # Use UI module for selection (allow selecting all)
+                selected_list = select_package(matches, "Select a package to remove", allow_all=True)
                 
-                print()
-                try:
-                    choice = input(f"{Style.INFO}Select a package to remove (1-{len(matches)}), 'a' to remove all, or 's' to skip: {Style.RESET}")
-                    if choice.lower() == 's' or choice.lower() == 'q':
-                        print("Skipping...")
-                        continue
+                if selected_list is None:
+                    continue
+                elif not selected_list:
+                    print("Skipping...")
+                    continue
+                
+                for selected in selected_list:
+                    prov = selected.provider if hasattr(selected, 'provider') else selected.get('provider', 'unknown')
+                    pkg_id = (selected.id if hasattr(selected, 'id') else selected.get('id')) or \
+                             (selected.name if hasattr(selected, 'name') else selected.get('name'))
+                    pkg_name = selected.name if hasattr(selected, 'name') else selected.get('name', 'unknown')
                     
-                    if choice.lower() == 'a':
-                        confirm = input(f"{Style.WARNING}Are you sure you want to remove ALL {len(matches)} packages listed above? (y/N): {Style.RESET}")
-                        if confirm.lower() == 'y':
-                            for selected in matches:
-                                prov = selected['provider']
-                                pkg_id = selected.get('id') or selected.get('name')
-                                if prov not in packages_to_remove:
-                                    packages_to_remove[prov] = []
-                                packages_to_remove[prov].append(pkg_id)
-                                log_info(f"Selected {selected['name']} from {prov} for removal")
-                            continue
-                        else:
-                             print("Cancelled 'remove all'. Skipping...")
-                             continue
-
-                    choice_idx = int(choice) - 1
-                    if 0 <= choice_idx < len(matches):
-                        selected = matches[choice_idx]
-                        prov = selected['provider']
-                        
-                        pkg_id = selected.get('id') or selected.get('name')
-                        
-                        if prov not in packages_to_remove:
-                            packages_to_remove[prov] = []
-                        packages_to_remove[prov].append(pkg_id)
-                        log_info(f"Selected {selected['name']} from {prov} for removal")
-                    else:
-                        log_error("Invalid selection.")
-                except ValueError:
-                    log_error("Invalid input.")
+                    if prov not in packages_to_remove:
+                        packages_to_remove[prov] = []
+                    packages_to_remove[prov].append(pkg_id)
+                    log_info(f"Selected {pkg_name} from {prov} for removal")
 
     if not packages_to_remove:
         log_warn("No packages selected for removal.")
         return
 
+    errors = []
     for provider_name, packages in packages_to_remove.items():
         mgr = _get_manager_or_warn(provider_name)
         if mgr:
-             log_task(f"Removing {len(packages)} packages via {mgr.name}...")
-             mgr.uninstall(packages)
+            log_task(f"Removing {len(packages)} packages via {mgr.name}...")
+            try:
+                mgr.uninstall(packages)
+            except CommandError as e:
+                errors.append(f"{mgr.name}: {e}")
 
-    log_success("Removal process finished.")
+    if errors:
+        for err in errors:
+            log_error(err)
+        log_warn(f"Removal completed with {len(errors)} error(s).")
+    else:
+        log_success("Removal process finished.")
 
 def cmd_upgrade(args: argparse.Namespace) -> None:
     manager = ModuleManager.get_instance()
@@ -447,9 +432,13 @@ def cmd_list(args: argparse.Namespace) -> None:
         if pkgs:
             print(f"{Style.BOLD}{Style.INFO}:: {mgr.name} ({len(pkgs)}){Style.RESET}")
             for pkg in pkgs:
-                # support various keys
-                name = pkg.get('name', 'unknown')
-                extra = pkg.get('version') or pkg.get('id') or pkg.get('origin') or ''
+                # Support both Package objects and legacy dicts
+                if hasattr(pkg, 'name'):
+                    name = pkg.name
+                    extra = pkg.version or pkg.id or pkg.origin or ''
+                else:
+                    name = pkg.get('name', 'unknown')
+                    extra = pkg.get('version') or pkg.get('id') or pkg.get('origin') or ''
                 print(f"  {Style.SUCCESS}•{Style.RESET} {Style.BOLD}{name}{Style.RESET} {Style.DIM}({extra}){Style.RESET}")
         else:
              print(f"{Style.DIM}No packages found in {mgr.name}{Style.RESET}")
@@ -470,17 +459,7 @@ def cmd_search(args: argparse.Namespace) -> None:
                  results = _filter_results_smart(results, term, show_all)
                  
                  if results:
-                     print(f"\n{Style.BOLD}Found {len(results)} matches for '{term}' in {prov}:{Style.RESET}")
-                     for i, res in enumerate(results):
-                         idx = i + 1
-                         name = res.get('name', 'unknown')
-                         ver = res.get('version', '')
-                         desc = res.get('description', '')[:60]
-                         if len(res.get('description', '')) > 60: desc += "..."
-                         
-                         print(f" {Style.SUCCESS}{idx}.{Style.RESET} {Style.BOLD}{name}{Style.RESET} {Style.DIM}({prov} {ver}){Style.RESET}")
-                         if desc:
-                             print(f"    {desc}")
+                     display_package_list(results, f"Found {len(results)} matches for '{term}' in {prov}")
                  else:
                      log_warn(f"No results for '{term}' in {prov}")
         else:
@@ -493,18 +472,7 @@ def cmd_search(args: argparse.Namespace) -> None:
              results = _filter_results_smart(results, q, show_all)
              
              if results:
-                 print(f"\n{Style.BOLD}Found {len(results)} matches for '{q}':{Style.RESET}")
-                 for i, res in enumerate(results):
-                     idx = i + 1
-                     name = res.get('name', 'unknown')
-                     prov = res.get('provider', 'unknown')
-                     ver = res.get('version', '')
-                     desc = res.get('description', '')[:60]
-                     if len(res.get('description', '')) > 60: desc += "..."
-                     
-                     print(f" {Style.SUCCESS}{idx}.{Style.RESET} {Style.BOLD}{name}{Style.RESET} {Style.DIM}({prov} {ver}){Style.RESET}")
-                     if desc:
-                         print(f"    {desc}")
+                 display_package_list(results, f"Found {len(results)} matches for '{q}'")
              else:
                  log_warn(f"No results for '{q}'")
 
@@ -513,6 +481,7 @@ def cmd_clean(args: argparse.Namespace) -> None:
     manager = ModuleManager.get_instance()
     
     modules = getattr(args, 'modules', [])
+    errors = []
     
     if not modules:
         # Clean all available providers
@@ -520,8 +489,17 @@ def cmd_clean(args: argparse.Namespace) -> None:
         for mgr in manager.get_all_managers():
             if mgr.is_available():
                 log_info(f"Cleaning {mgr.name}...")
-                mgr.clean()
-        log_success("Clean complete.")
+                try:
+                    mgr.clean()
+                except CommandError as e:
+                    errors.append(f"{mgr.name}: {e}")
+        
+        if errors:
+            for err in errors:
+                log_error(err)
+            log_warn(f"Clean completed with {len(errors)} error(s).")
+        else:
+            log_success("Clean complete.")
         return
     
     # Clean specific providers
@@ -529,9 +507,17 @@ def cmd_clean(args: argparse.Namespace) -> None:
         mgr = _get_manager_or_warn(mod_name)
         if mgr and mgr.is_available():
             log_task(f"Cleaning {mgr.name}...")
-            mgr.clean()
+            try:
+                mgr.clean()
+            except CommandError as e:
+                errors.append(f"{mgr.name}: {e}")
         elif mgr:
             log_error(f"Provider '{mgr.name}' is not available.")
     
-    log_success("Clean process finished.")
+    if errors:
+        for err in errors:
+            log_error(err)
+        log_warn(f"Clean completed with {len(errors)} error(s).")
+    else:
+        log_success("Clean process finished.")
 

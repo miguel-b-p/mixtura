@@ -14,7 +14,6 @@ def is_nuitka_compiled():
     # Nuitka sets __compiled__ attribute when compiled
     return "__compiled__" in dir() or getattr(sys, 'frozen', False) or hasattr(sys, '_MEIPASS')
 
-
 def check_for_updates():
     """Checks if there is a new version available by comparing versions."""
     is_compiled = is_nuitka_compiled()

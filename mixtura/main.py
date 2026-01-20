@@ -1,11 +1,11 @@
 import argparse
-import sys
+import sys  
+from typing import Optional
 
 from mixtura.utils import Style
 from mixtura.commands import cmd_add, cmd_remove, cmd_upgrade, cmd_list, cmd_search, cmd_clean
 from mixtura.manager import ModuleManager
 from mixtura.update import check_for_updates
-
 
 class ColoredHelpFormatter(argparse.RawDescriptionHelpFormatter):
     def start_section(self, heading):
@@ -51,9 +51,6 @@ def main() -> None:
 
   {Style.SUCCESS}#{Style.RESET} Upgrade all packages
   {Style.DIM}$ mixtura upgrade{Style.RESET}
-
-  {Style.SUCCESS}#{Style.RESET} Run manager specific commands
-  {Style.DIM}$ mixtura nixpkgs --gc{Style.RESET}
 """
 
     parser = argparse.ArgumentParser(

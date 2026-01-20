@@ -4,6 +4,7 @@ import argparse
 from typing import List, Dict, Any, Optional
 
 from mixtura.core import PackageManager
+from mixtura.models import Package
 from mixtura.utils import log_info, log_error, log_warn, log_task, run, Style
 
 class HomebrewProvider(PackageManager):
@@ -38,7 +39,7 @@ class HomebrewProvider(PackageManager):
             log_info(f"Upgrading: {', '.join(packages)}")
             run(["brew", "upgrade"] + packages)
 
-    def list_packages(self) -> List[Dict[str, Any]]:
+    def list_packages(self) -> List[Package]:
         if not self.is_available():
             return []
 
@@ -65,7 +66,7 @@ class HomebrewProvider(PackageManager):
             if ver_result.returncode != 0:
                 return []
 
-            packages = []
+            packages: List[Package] = []
             lines = ver_result.stdout.strip().split('\n')
             
             for line in lines:
@@ -75,11 +76,13 @@ class HomebrewProvider(PackageManager):
                     # Check if this package was requested
                     if name in requested_pkgs:
                         version = parts[1]
-                        packages.append({
-                            "name": name,
-                            "version": version,
-                            "id": name # brew doesn't really have IDs like flatpak, use name
-                        })
+                        packages.append(Package(
+                            name=name,
+                            provider=self.name,
+                            id=name,  # brew doesn't really have IDs like flatpak, use name
+                            version=version,
+                            installed=True
+                        ))
 
             return packages
 
@@ -87,7 +90,7 @@ class HomebrewProvider(PackageManager):
             log_error(f"Failed to list homebrew packages: {e}")
             return []
 
-    def search(self, query: str) -> List[Dict[str, Any]]:
+    def search(self, query: str) -> List[Package]:
         if not self.is_available():
             return []
         log_info(f"Searching for '{Style.BOLD}{query}{Style.RESET}' in Homebrew...")
@@ -112,7 +115,7 @@ class HomebrewProvider(PackageManager):
              cmd = ["brew", "search", "--desc", query]
              result = subprocess.run(cmd, capture_output=True, text=True)
              
-             packages = []
+             packages: List[Package] = []
              if result.returncode != 0 and not result.stdout:
                  return []
              
@@ -140,14 +143,14 @@ class HomebrewProvider(PackageManager):
                      name = line
                      desc = "No description"
                  
-                 packages.append({
-                     "name": name,
-                     "id": name,
-                     "description": desc,
-                     "version": "unknown", # Getting version requires brew info, expensive for all results
-                     "provider": self.name,
-                     "type": current_type 
-                 })
+                 packages.append(Package(
+                     name=name,
+                     provider=self.name,
+                     id=name,
+                     version="unknown",  # Getting version requires brew info, expensive for all results
+                     description=desc,
+                     extra={"type": current_type}
+                 ))
              
              return packages
 

@@ -6,6 +6,7 @@ import argparse
 from typing import List, Dict, Any, Optional
 
 from mixtura.core import PackageManager
+from mixtura.models import Package
 from mixtura.utils import log_info, log_error, log_warn, run, Style
 
 class NixProvider(PackageManager):
@@ -63,7 +64,7 @@ class NixProvider(PackageManager):
                 log_info(f"Upgrading '{pkg}' (nix)...")
                 run(["nix", "profile", "upgrade", "--impure", pkg], check_warnings=True)
 
-    def list_packages(self) -> List[Dict[str, Any]]:
+    def list_packages(self) -> List[Package]:
         if not self.is_available():
             return []
             
@@ -173,7 +174,14 @@ class NixProvider(PackageManager):
                     origin = details.get("originalUrl") or details.get("attrPath", "unknown")
                     store_paths = details.get("storePaths", [])
                     version = _extract_version(store_paths, name)
-                    packages.append({"name": name, "origin": origin, "version": version})
+                    packages.append(Package(
+                        name=name,
+                        provider=self.name,
+                        id=name,
+                        version=version,
+                        origin=origin,
+                        installed=True
+                    ))
 
             # Fallback for potential list structure (older versions?)
             elif isinstance(elements, list):
@@ -182,13 +190,20 @@ class NixProvider(PackageManager):
                     name = attr_path.split('.')[-1] if '.' in attr_path else attr_path
                     store_paths = element.get("storePaths", [])
                     version = _extract_version(store_paths, name)
-                    packages.append({"name": name, "origin": attr_path, "version": version})
+                    packages.append(Package(
+                        name=name,
+                        provider=self.name,
+                        id=name,
+                        version=version,
+                        origin=attr_path,
+                        installed=True
+                    ))
                     
             return packages
         except Exception:
             return []
 
-    def search(self, query: str) -> List[Dict[str, Any]]:
+    def search(self, query: str) -> List[Package]:
         if not self.is_available():
             return []
         log_info(f"Searching for '{Style.BOLD}{query}{Style.RESET}' in nixpkgs...")
@@ -206,7 +221,7 @@ class NixProvider(PackageManager):
                 return []
             
             data = json.loads(result.stdout)
-            packages = []
+            packages: List[Package] = []
             
             # Structure: { "legacyPackages.x86_64-linux.pkgName": { "description": "...", "version": "..." } }
             for key, details in data.items():
@@ -216,13 +231,13 @@ class NixProvider(PackageManager):
                 version = details.get('version', 'unknown')
                 desc = details.get('description', '')
                 
-                packages.append({
-                    "name": name,
-                    "id": key, # Provide full attribute path as ID
-                    "description": desc,
-                    "version": version,
-                    "provider": self.name
-                })
+                packages.append(Package(
+                    name=name,
+                    provider=self.name,
+                    id=key,  # Provide full attribute path as ID
+                    version=version,
+                    description=desc
+                ))
             
             return packages
 

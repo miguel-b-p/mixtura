@@ -5,6 +5,7 @@ import argparse
 from typing import List, Dict, Any, Optional
 
 from mixtura.core import PackageManager
+from mixtura.models import Package
 from mixtura.utils import log_info, log_error, log_warn, log_task, run, Style
 
 class FlatpakProvider(PackageManager):
@@ -55,7 +56,7 @@ class FlatpakProvider(PackageManager):
             log_info(f"Updating: {', '.join(packages)}")
             run(["flatpak", "update", "-y"] + packages)
 
-    def list_packages(self) -> List[Dict[str, Any]]:
+    def list_packages(self) -> List[Package]:
         if not self.is_available():
             return []
             
@@ -65,22 +66,24 @@ class FlatpakProvider(PackageManager):
                 capture_output=True,
                 text=True
             )
-            packages = []
+            packages: List[Package] = []
             if result.returncode == 0:
                 lines = result.stdout.strip().split('\n')
                 for line in lines:
                     parts = line.split('\t')
                     if len(parts) >= 2:
-                        packages.append({
-                            "name": parts[0],
-                            "id": parts[1],
-                            "version": parts[3] if len(parts) > 3 else "unknown"
-                        })
+                        packages.append(Package(
+                            name=parts[0],
+                            provider=self.name,
+                            id=parts[1],
+                            version=parts[3] if len(parts) > 3 else "unknown",
+                            installed=True
+                        ))
             return packages
         except Exception:
             return []
 
-    def search(self, query: str) -> List[Dict[str, Any]]:
+    def search(self, query: str) -> List[Package]:
         if not self.is_available():
             return []
         
@@ -98,7 +101,7 @@ class FlatpakProvider(PackageManager):
                 return []
 
             lines = result.stdout.strip().split('\n')
-            packages = []
+            packages: List[Package] = []
             
             # Skip header if present (flatpak usually prints header if tty, but maybe not with pipe, checking just in case)
             if lines and "Application ID" in lines[0]:
@@ -118,13 +121,13 @@ class FlatpakProvider(PackageManager):
                     desc = parts[2] if len(parts) > 2 else ""
                     version = parts[3] if len(parts) > 3 else "unknown"
                     
-                    packages.append({
-                        "name": name,
-                        "id": app_id,
-                        "description": desc,
-                        "version": version,
-                        "provider": self.name
-                    })
+                    packages.append(Package(
+                        name=name,
+                        provider=self.name,
+                        id=app_id,
+                        version=version,
+                        description=desc
+                    ))
             return packages
 
         except Exception as e:
