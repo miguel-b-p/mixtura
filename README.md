@@ -36,25 +36,26 @@ You can mix and match providers in a single command.
 # Install from the default provider (Nix)
 mixtura add nixpkgs#git,vim
 
-# Install with interactive search (if provider not specified)
-mixtura add git vim
-# > Searches all providers and prompts for selection per package
+# Smart search: finds exact match for 'vim' (not vim-*, vimwiki, etc.)
+mixtura add vim
+# > Finds only the package named 'vim'
+
+# Use wildcards for broader searches
+mixtura add "vim-*"
+# > Finds all packages starting with 'vim-' (vim-airline, vim-fugitive, etc.)
+
+# Show ALL results (original behavior)
+mixtura add --all vim
+# > Shows all 3000+ packages containing 'vim'
 
 # Install specifically from Flatpak
 mixtura add flatpak#Spotify
-# Or
-mix add flatpak#Spotify
 
-# Flexible Command: Mix Providers and Search
-# Installs 'bottles' from Nix, 'Sober' from Flatpak, and interactively searches for 'ollama'
+# Mix Providers and Search
 mixtura add nixpkgs#bottles flatpak#Sober ollama
-# Or
-mix add nixpkgs#bottles flatpak#Sober ollama
 
 # Install from multiple sources simultaneously
 mixtura add nixpkgs#vim flatpak#OBS
-# Or
-mix add nixpkgs#vim flatpak#OBS
 ```
 
 ### Removing Packages
@@ -63,9 +64,11 @@ mix add nixpkgs#vim flatpak#OBS
 # Remove specific packages
 mixtura remove nixpkgs#git flatpak#Spotify
 
-# Remove with interactive search (if provider not specified)
-mixtura remove firefox
-# > Search installed packages matching 'firefox' across all providers and prompts for selection
+# Smart search for removal (exact match first)
+mixtura remove vim
+
+# Use --all to see all matching installed packages
+mixtura remove --all vim
 ```
 
 ### Upgrading
@@ -83,7 +86,18 @@ mixtura upgrade nixpkgs
 ### Searching
 
 ```bash
-mixtura search "web browser" flatpak#spotify
+# Smart search: prioritizes exact match
+mixtura search vim
+
+# Use wildcards for pattern matching
+mixtura search "*-nvim"    # Packages ending with -nvim
+mixtura search "neovim-*"  # Packages starting with neovim-
+
+# Show all results
+mixtura search --all vim
+
+# Search in specific provider
+mixtura search flatpak#spotify
 ```
 
 ### Credits
