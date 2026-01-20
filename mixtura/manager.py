@@ -100,17 +100,29 @@ class ModuleManager:
 
     def search_all(self, query: str) -> List[Dict[str, Any]]:
         """
-        Search for query in all available package managers.
-        Returns a aggregated list of results.
+        Search for query in all available package managers in parallel.
+        Returns an aggregated list of results.
         """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
+        available_managers = [m for m in self.get_all_managers() if m.is_available()]
+        
+        if not available_managers:
+            return []
+        
+        def _search_provider(mgr: PackageManager) -> List[Dict[str, Any]]:
+            try:
+                return mgr.search(query) or []
+            except Exception as e:
+                log_warn(f"Search failed in {mgr.name}: {e}")
+                return []
+        
         all_results = []
-        for mgr in self.get_all_managers():
-            if mgr.is_available():
-                try:
-                    results = mgr.search(query)
-                    if results:
-                        all_results.extend(results)
-                except Exception as e:
-                    # Individual search failure shouldn't stop others
-                    log_warn(f"Search failed in {mgr.name}: {e}")
+        with ThreadPoolExecutor(max_workers=len(available_managers)) as executor:
+            futures = {executor.submit(_search_provider, mgr): mgr.name for mgr in available_managers}
+            for future in as_completed(futures):
+                results = future.result()
+                if results:
+                    all_results.extend(results)
+        
         return all_results

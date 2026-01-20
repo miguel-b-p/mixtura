@@ -1,7 +1,8 @@
 import argparse
 import fnmatch
 import re
-from typing import Dict, List, Any
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, List, Any, Tuple
 
 from mixtura.utils import log_task, log_info, log_success, log_warn, log_error, Style
 from mixtura.manager import ModuleManager
@@ -118,24 +119,57 @@ def cmd_add(args: argparse.Namespace) -> None:
                 except ValueError:
                     log_error("Invalid input.")
 
-    # Proceed with installation
+    # Proceed with installation (parallel)
     if not packages_to_install:
         log_warn("No packages selected for installation.")
         return
 
     print()
-    for provider_name, packages in packages_to_install.items():
-        mgr = _get_manager_or_warn(provider_name)
-        if mgr and mgr.is_available():
-            log_task(f"Installing {len(packages)} packages via {mgr.name}...")
+    
+    def _install_provider(provider_name: str, packages: List[str]) -> Tuple[str, bool, str]:
+        """Install packages for a single provider. Returns (provider_name, success, message)."""
+        mgr = ModuleManager.get_instance().get_manager(provider_name)
+        if not mgr:
+            return (provider_name, False, f"Provider '{provider_name}' unknown.")
+        if not mgr.is_available():
+            return (provider_name, False, f"Provider '{mgr.name}' is not available.")
+        try:
             mgr.install(packages)
+            return (provider_name, True, f"Installed {len(packages)} packages via {mgr.name}")
+        except Exception as e:
+            return (provider_name, False, f"Failed to install via {mgr.name}: {e}")
+    
+    # Log what we're about to do
+    provider_names = list(packages_to_install.keys())
+    log_task(f"Installing packages from {len(provider_names)} provider(s) in parallel...")
+    for prov, pkgs in packages_to_install.items():
+        log_info(f"{prov}: {', '.join(pkgs)}")
+    print()
+    
+    # Execute in parallel
+    results = []
+    with ThreadPoolExecutor(max_workers=len(packages_to_install)) as executor:
+        futures = {
+            executor.submit(_install_provider, prov, pkgs): prov 
+            for prov, pkgs in packages_to_install.items()
+        }
+        for future in as_completed(futures):
+            results.append(future.result())
+    
+    # Report results
+    print()
+    success_count = 0
+    for provider_name, success, message in results:
+        if success:
+            log_success(message)
+            success_count += 1
         else:
-            if mgr:
-                log_error(f"Provider '{mgr.name}' is not available.")
-            else:
-                 log_error(f"Provider '{provider_name}' unknown.")
-
-    log_success("Installation process finished.")
+            log_error(message)
+    
+    if success_count == len(packages_to_install):
+        log_success("Installation process finished.")
+    else:
+        log_warn(f"Installation completed with {len(packages_to_install) - success_count} error(s).")
 
 def cmd_remove(args: argparse.Namespace) -> None:
     manager = ModuleManager.get_instance()
@@ -268,26 +302,57 @@ def cmd_remove(args: argparse.Namespace) -> None:
 def cmd_upgrade(args: argparse.Namespace) -> None:
     manager = ModuleManager.get_instance()
     
+    def _upgrade_provider(mgr, packages: List[str] = None) -> Tuple[str, bool, str]:
+        """Upgrade packages for a single provider. Returns (provider_name, success, message)."""
+        try:
+            mgr.upgrade(packages)
+            if packages:
+                return (mgr.name, True, f"Upgraded {len(packages)} packages via {mgr.name}")
+            else:
+                return (mgr.name, True, f"Upgraded all packages in {mgr.name}")
+        except Exception as e:
+            return (mgr.name, False, f"Failed to upgrade {mgr.name}: {e}")
+    
     # 1. Upgrade ALL
     if not args.packages:
-        log_task("Upgrading all available providers...")
-        for mgr in manager.get_all_managers():
-            if mgr.is_available():
-                log_info(f"Upgrading {mgr.name}...")
-                mgr.upgrade(None) # None = all
-        log_success("Upgrade complete.")
+        log_task("Upgrading all available providers in parallel...")
+        
+        available_managers = [m for m in manager.get_all_managers() if m.is_available()]
+        
+        if not available_managers:
+            log_warn("No package managers available.")
+            return
+        
+        for mgr in available_managers:
+            log_info(f"Will upgrade: {mgr.name}")
+        print()
+        
+        results = []
+        with ThreadPoolExecutor(max_workers=len(available_managers)) as executor:
+            futures = {executor.submit(_upgrade_provider, mgr, None): mgr.name for mgr in available_managers}
+            for future in as_completed(futures):
+                results.append(future.result())
+        
+        print()
+        success_count = 0
+        for provider_name, success, message in results:
+            if success:
+                log_success(message)
+                success_count += 1
+            else:
+                log_error(message)
+        
+        if success_count == len(available_managers):
+            log_success("Upgrade complete.")
+        else:
+            log_warn(f"Upgrade completed with {len(available_managers) - success_count} error(s).")
         return
 
-    # 2. Upgrade specific provider (e.g. 'nixpkgs')
-    # Or specific packages
+    # 2. Upgrade specific provider (e.g. 'nixpkgs') or specific packages
     packages_map: Dict[str, List[str]] = {}
     providers_full = []
     
-    # Reuse simple logic or custom parsing?
-    # Let's use simple manual parsing as resolve_packages forces default.
-    
     for arg in args.packages:
-        # Check if arg is a provider name
         if manager.get_manager(arg):
             providers_full.append(arg)
             continue
@@ -297,32 +362,55 @@ def cmd_upgrade(args: argparse.Namespace) -> None:
             if prov not in packages_map: packages_map[prov] = []
             packages_map[prov].append(pkg)
         else:
-            # Default fallback for upgrade? 
-            # Assume 'nixpkgs' as default for upgrade context if not specified? 
-            # Or should we warn?
-            # Existing behavior was defaulting to nixpkgs.
             prov = 'nixpkgs'
             if prov not in packages_map: packages_map[prov] = []
             packages_map[prov].append(arg)
 
-    # Execute full upgrades
+    if not packages_map and not providers_full:
+        log_warn("No packages or providers specified for upgrade.")
+        return
+
+    # Prepare tasks
+    tasks = []
+    
     for prov in providers_full:
         mgr = _get_manager_or_warn(prov)
         if mgr and mgr.is_available():
-            log_task(f"Upgrading all packages in {prov}...")
-            mgr.upgrade(None)
+            log_info(f"Will upgrade all in: {prov}")
+            tasks.append((mgr, None))
 
-    # Execute package specific upgrades
     for prov, pkgs in packages_map.items():
         mgr = _get_manager_or_warn(prov)
         if mgr and mgr.is_available():
-            log_task(f"Upgrading specific packages in {prov}...")
-            mgr.upgrade(pkgs)
-
-    if not packages_map and not providers_full:
-        log_warn("No packages or providers specified for upgrade.")
-    else:
+            log_info(f"Will upgrade in {prov}: {', '.join(pkgs)}")
+            tasks.append((mgr, pkgs))
+    
+    if not tasks:
+        log_warn("No valid providers found for upgrade.")
+        return
+    
+    print()
+    log_task(f"Upgrading {len(tasks)} provider(s) in parallel...")
+    
+    results = []
+    with ThreadPoolExecutor(max_workers=len(tasks)) as executor:
+        futures = {executor.submit(_upgrade_provider, mgr, pkgs): mgr.name for mgr, pkgs in tasks}
+        for future in as_completed(futures):
+            results.append(future.result())
+    
+    print()
+    success_count = 0
+    for provider_name, success, message in results:
+        if success:
+            log_success(message)
+            success_count += 1
+        else:
+            log_error(message)
+    
+    if success_count == len(tasks):
         log_success("Upgrade process finished.")
+    else:
+        log_warn(f"Upgrade completed with {len(tasks) - success_count} error(s).")
 
 def cmd_list(args: argparse.Namespace) -> None:
     manager = ModuleManager.get_instance()
