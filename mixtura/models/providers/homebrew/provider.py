@@ -11,6 +11,7 @@ from typing import List, Optional
 from mixtura.models.base import PackageManager
 from mixtura.models.package import Package
 from mixtura.utils import run
+from mixtura.cache import SearchCache
 
 
 class HomebrewProvider(PackageManager):
@@ -113,6 +114,12 @@ class HomebrewProvider(PackageManager):
         if not self.is_available():
             return []
         
+        # Check cache first
+        cache = SearchCache(self.name)
+        cached = cache.get(query)
+        if cached is not None:
+            return cached
+        
         try:
              cmd = ["brew", "search", "--desc", query]
              result = subprocess.run(cmd, capture_output=True, text=True)
@@ -152,6 +159,8 @@ class HomebrewProvider(PackageManager):
                      extra={"type": current_type}
                  ))
              
+             # Save to cache
+             cache.set(query, packages)
              return packages
 
         except Exception:

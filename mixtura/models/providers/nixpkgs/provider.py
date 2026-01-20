@@ -12,6 +12,7 @@ from typing import List, Dict, Any, Optional
 from mixtura.models.base import PackageManager
 from mixtura.models.package import Package
 from mixtura.utils import run
+from mixtura.cache import SearchCache
 
 
 class NixProvider(PackageManager):
@@ -181,6 +182,12 @@ class NixProvider(PackageManager):
         if not self.is_available():
             return []
         
+        # Check cache first
+        cache = SearchCache(self.name)
+        cached = cache.get(query)
+        if cached is not None:
+            return cached
+        
         try:
             cmd = ["nix", "search", "nixpkgs", query, "--json"]
             result = subprocess.run(cmd, capture_output=True, text=True)
@@ -205,6 +212,8 @@ class NixProvider(PackageManager):
                     description=desc
                 ))
             
+            # Save to cache
+            cache.set(query, packages)
             return packages
 
         except Exception:

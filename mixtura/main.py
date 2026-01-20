@@ -6,6 +6,7 @@ A unified package manager CLI that supports Nix, Flatpak, and Homebrew.
 
 import argparse
 import sys
+import pickle
 
 from mixtura.views import Style
 from mixtura.controllers.add import cmd_add

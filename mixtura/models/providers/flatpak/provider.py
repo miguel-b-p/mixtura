@@ -11,6 +11,7 @@ from typing import List, Optional
 from mixtura.models.base import PackageManager
 from mixtura.models.package import Package
 from mixtura.utils import run
+from mixtura.cache import SearchCache
 
 
 class FlatpakProvider(PackageManager):
@@ -94,6 +95,12 @@ class FlatpakProvider(PackageManager):
         if not self.is_available():
             return []
         
+        # Check cache first
+        cache = SearchCache(self.name)
+        cached = cache.get(query)
+        if cached is not None:
+            return cached
+        
         try:
             result = subprocess.run(
                 ["flatpak", "search", query, "--columns=name,application,description,version"], 
@@ -132,6 +139,8 @@ class FlatpakProvider(PackageManager):
                         version=version,
                         description=desc
                     ))
+            # Save to cache
+            cache.set(query, packages)
             return packages
 
         except Exception:
