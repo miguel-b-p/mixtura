@@ -35,6 +35,6 @@ jobs:
           VERSION=$(cat bin/VERSION)
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add bin/mixtura bin/HASH bin/VERSION pyproject.toml flake.nix
+          git add bin/mixtura bin/HASH bin/VERSION mixtura/VERSION pyproject.toml flake.nix
           git commit -m "chore: update compiled binary to v${VERSION} [skip ci]" || echo "No changes to commit"
           git push
