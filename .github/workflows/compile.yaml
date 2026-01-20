@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - "**"
+    paths:
+      - "mixtura/**"
   workflow_dispatch:
 
 jobs:

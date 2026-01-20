@@ -1,5 +1,8 @@
 name: Check Python vulnerabilities
-on: push
+on:
+  push:
+    paths:
+      - "mixtura/**"
 
 jobs:
   security:
