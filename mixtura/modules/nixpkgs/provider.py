@@ -13,19 +13,19 @@ class NixProvider(PackageManager):
     def name(self) -> str:
         return "nixpkgs"
 
-    def setup_parser(self, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--gc", action="store_true", help="Garbage collect the Nix store")
+    # def setup_parser(self, parser: argparse.ArgumentParser) -> None:
+    #     parser.add_argument("--gc", action="store_true", help="Garbage collect the Nix store")
 
-    def execute(self, args: argparse.Namespace) -> None:
-        if getattr(args, "gc", False):
-            if not self.is_available():
-                log_error("Nix is not installed.")
-                return
-            log_info("Running Nix garbage collection...")
-            run(["nix", "store", "gc"])
-        else:
-             print(f"{Style.BOLD}Nix Package Manager{Style.RESET}")
-             print("Use 'poly nixpkgs --gc' to garbage collect.")
+    # def execute(self, args: argparse.Namespace) -> None:
+    #     if getattr(args, "gc", False):
+    #         if not self.is_available():
+    #             log_error("Nix is not installed.")
+    #             return
+    #         log_info("Running Nix garbage collection...")
+    #         run(["nix", "store", "gc"])
+    #     else:
+    #          print(f"{Style.BOLD}Nix Package Manager{Style.RESET}")
+    #          print("Use 'mixtura nixpkgs --gc' to garbage collect.")
 
     def is_available(self) -> bool:
         return shutil.which("nix") is not None
