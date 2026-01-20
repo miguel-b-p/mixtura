@@ -17,7 +17,7 @@ from mixtura.views.style import Style
 
 def is_nuitka_compiled():
     """Detects if the application is running as a Nuitka compiled executable."""
-    return "__compiled__" in dir() or getattr(sys, 'frozen', False) or hasattr(sys, '_MEIPASS')
+    return "__compiled__" in globals() or getattr(sys, 'frozen', False) or hasattr(sys, '_MEIPASS')
 
 
 def check_for_updates():
