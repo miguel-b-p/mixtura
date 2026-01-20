@@ -1,13 +1,26 @@
-import argparse
-import sys  
-from typing import Optional
+"""
+Mixtura - Mixed together. Running everywhere.
 
-from mixtura.utils import Style
-from mixtura.commands import cmd_add, cmd_remove, cmd_upgrade, cmd_list, cmd_search, cmd_clean
-from mixtura.manager import ModuleManager
+A unified package manager CLI that supports Nix, Flatpak, and Homebrew.
+"""
+
+import argparse
+import sys
+
+from mixtura.views import Style
+from mixtura.controllers.add import cmd_add
+from mixtura.controllers.remove import cmd_remove
+from mixtura.controllers.upgrade import cmd_upgrade
+from mixtura.controllers.list import cmd_list
+from mixtura.controllers.search import cmd_search
+from mixtura.controllers.clean import cmd_clean
+from mixtura.models.manager import ModuleManager
 from mixtura.update import check_for_updates
 
+
 class ColoredHelpFormatter(argparse.RawDescriptionHelpFormatter):
+    """Custom formatter with colored output."""
+    
     def start_section(self, heading):
         if heading:
             heading = f"{Style.BOLD}{Style.MAIN}{heading.title()}{Style.RESET}"
@@ -19,7 +32,9 @@ class ColoredHelpFormatter(argparse.RawDescriptionHelpFormatter):
         prefix = f"{Style.BOLD}{Style.SUCCESS}{prefix}{Style.RESET}"
         return super()._format_usage(usage, actions, groups, prefix)
 
+
 def main() -> None:
+    """Main entry point for Mixtura CLI."""
     check_for_updates()
 
     # Ensure modules are discovered
@@ -128,8 +143,8 @@ def main() -> None:
     p_list.add_argument(
         "type", 
         nargs="?", 
-        choices=["nixpkgs", "flatpak"], 
-        help="Optional: filter list by 'nixpkgs' or 'flatpak'"
+        choices=["nixpkgs", "flatpak", "homebrew"], 
+        help="Optional: filter list by provider"
     )
     p_list.set_defaults(func=cmd_list)
 
@@ -167,23 +182,6 @@ def main() -> None:
     )
     p_clean.set_defaults(func=cmd_clean)
 
-    # Register Module Subcommands
-    for mgr in available_managers:
-        if mgr.is_available():
-            # Check if manager has custom commands by inspecting a temporary parser
-            temp_parser = argparse.ArgumentParser(add_help=False)
-            mgr.setup_parser(temp_parser)
-            
-            # If actions were added (list is not empty), register the subcommand
-            if len(temp_parser._actions) > 0:
-                 p_mgr = sub.add_parser(
-                    mgr.name,
-                    help=f"Manage {mgr.name} specific operations",
-                    formatter_class=ColoredHelpFormatter
-                 )
-                 mgr.setup_parser(p_mgr)
-                 p_mgr.set_defaults(func=mgr.execute)
-
     try:
         args = parser.parse_args()
         print(Style.ASCII)
@@ -191,6 +189,7 @@ def main() -> None:
     except KeyboardInterrupt:
         print()
         sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

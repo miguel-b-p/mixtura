@@ -1,47 +1,56 @@
-import os
-import importlib.util
-import sys
-import glob
-from typing import Dict, List, Type, Any
+"""
+Module Manager for Mixtura.
 
-from mixtura.core import PackageManager
-from mixtura.utils import log_warn, log_info
+Discovers and manages package provider modules.
+This is the Model layer - no UI/print logic should be here.
+"""
+
+import importlib
+from typing import Dict, List, Any
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from mixtura.models.base import PackageManager
+
 
 class ModuleManager:
+    """
+    Manages discovery and access to package provider modules.
+    
+    Singleton pattern ensures consistent state across the application.
+    """
     _instance = None
     
     def __init__(self):
         self.managers: Dict[str, PackageManager] = {}
+        self._discovery_errors: List[str] = []
         self.discover_modules()
 
     @classmethod
-    def get_instance(cls):
+    def get_instance(cls) -> "ModuleManager":
+        """Get the singleton instance."""
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
 
-    def discover_modules(self):
+    def discover_modules(self) -> None:
         """
-        Dynamically discovers and loads modules from src/modules/*
+        Dynamically discovers and loads modules from models/providers/*
         Uses pkgutil to ensure compatibility with Nuitka/frozen builds and pure Python.
         """
-        from mixtura import modules
+        from mixtura.models import providers
         import pkgutil
         
-        # Iterate over all packages in the modules directory
-        # This yields names like 'modules.flatpak', 'modules.nixpkgs' if prefix is set,
-        # or just 'flatpak', 'nixpkgs' if not.
-        for importer, modname, ispkg in pkgutil.iter_modules(modules.__path__, modules.__name__ + "."):
+        # Iterate over all packages in the providers directory
+        for importer, modname, ispkg in pkgutil.iter_modules(providers.__path__, providers.__name__ + "."):
             if ispkg:
-                # We interpret each subpackage as a manager/provider container
-                # We expect a 'provider' submodule inside it: e.g. modules.flatpak.provider
+                # We expect a 'provider' submodule inside it: e.g. models.providers.flatpak.provider
                 provider_module_name = f"{modname}.provider"
                 self._load_module(provider_module_name)
 
-    def _load_module(self, module_name: str):
+    def _load_module(self, module_name: str) -> None:
+        """Load a provider module and register it."""
         try:
             # Try to import the module by name
-            # This works for both filesystem and frozen (Nuitka) modules
             module = importlib.import_module(module_name)
             
             # Find the PackageManager subclass
@@ -55,23 +64,34 @@ class ModuleManager:
                     instance = attr()
                     self.managers[instance.name] = instance
         except ImportError:
-            # It's okay if a subpackage doesn't have a provider.py (though expected in this structure)
+            # It's okay if a subpackage doesn't have a provider.py
             pass
         except Exception as e:
-            log_warn(f"Failed to load module {module_name}: {e}")
+            # Store errors for later retrieval if needed
+            self._discovery_errors.append(f"Failed to load module {module_name}: {e}")
 
     def get_manager(self, name: str) -> PackageManager:
+        """Get a specific package manager by name."""
         return self.managers.get(name)
 
     def get_all_managers(self) -> List[PackageManager]:
+        """Get all registered package managers."""
         return list(self.managers.values())
+    
+    def get_available_managers(self) -> List[PackageManager]:
+        """Get all available (installed) package managers."""
+        return [m for m in self.managers.values() if m.is_available()]
+    
+    def get_discovery_errors(self) -> List[str]:
+        """Get any errors that occurred during module discovery."""
+        return self._discovery_errors.copy()
         
     def resolve_packages(self, args: List[str]) -> Dict[str, List[str]]:
         """
         Groups packages by their provider based on prefixes.
         e.g. ['git', 'flatpak#spotify'] -> {'nixpkgs': ['git'], 'flatpak': ['spotify']}
         
-        Assumes 'nixpkgs' is the default if no prefix is given (can be configured later).
+        Assumes 'nixpkgs' is the default if no prefix is given.
         """
         grouped = {}
         
@@ -102,10 +122,10 @@ class ModuleManager:
         """
         Search for query in all available package managers in parallel.
         Returns an aggregated list of results.
-        """
-        from concurrent.futures import ThreadPoolExecutor, as_completed
         
-        available_managers = [m for m in self.get_all_managers() if m.is_available()]
+        Note: This is a pure data operation - no logging or printing.
+        """
+        available_managers = self.get_available_managers()
         
         if not available_managers:
             return []
@@ -113,8 +133,7 @@ class ModuleManager:
         def _search_provider(mgr: PackageManager) -> List[Dict[str, Any]]:
             try:
                 return mgr.search(query) or []
-            except Exception as e:
-                log_warn(f"Search failed in {mgr.name}: {e}")
+            except Exception:
                 return []
         
         all_results = []

@@ -1,10 +1,20 @@
+"""
+Abstract base class for package managers.
+
+Defines the interface that all package providers must implement.
+This is the Model layer - no UI/print logic should be here.
+"""
+
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
-import argparse
+
 
 class PackageManager(ABC):
     """
     Abstract base class for all package manager modules.
+    
+    All methods should return data or raise exceptions.
+    No print() or logging calls should be made here - that's the View's job.
     """
     
     @property
@@ -20,19 +30,31 @@ class PackageManager(ABC):
 
     @abstractmethod
     def install(self, packages: List[str]) -> None:
-        """Install the specified packages."""
+        """
+        Install the specified packages.
+        
+        Raises:
+            CommandError: If installation fails
+        """
         pass
 
     @abstractmethod
     def uninstall(self, packages: List[str]) -> None:
-        """Uninstall the specified packages."""
+        """
+        Uninstall the specified packages.
+        
+        Raises:
+            CommandError: If uninstallation fails
+        """
         pass
 
     @abstractmethod
     def upgrade(self, packages: Optional[List[str]] = None) -> None:
         """
         Upgrade specified packages, or all if packages is None or empty.
-        Note: Some implementations might treat empty list as 'upgrade all'.
+        
+        Raises:
+            CommandError: If upgrade fails
         """
         pass
 
@@ -57,20 +79,8 @@ class PackageManager(ABC):
         """
         Clean up unused packages and cached data.
         This performs garbage collection specific to each package manager.
+        
+        Raises:
+            CommandError: If cleanup fails
         """
         pass
-
-    def setup_parser(self, parser: argparse.ArgumentParser) -> None:
-        """
-        Configure an argparse subparser for this package manager.
-        Override this to add custom arguments (e.g. --gc).
-        """
-        pass
-
-    def execute(self, args: argparse.Namespace) -> None:
-        """
-        Execute an action based on the parsed arguments.
-        Override this to handle custom arguments.
-        """
-        pass
-

@@ -1,11 +1,17 @@
+"""
+Homebrew package provider for Mixtura.
+
+Provides integration with Homebrew package manager (macOS/Linux).
+"""
+
 import shutil
 import subprocess
-import argparse
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 
-from mixtura.core import PackageManager
-from mixtura.models import Package
-from mixtura.utils import log_info, log_error, log_warn, log_task, run, Style
+from mixtura.models.base import PackageManager
+from mixtura.models.package import Package
+from mixtura.utils import run
+
 
 class HomebrewProvider(PackageManager):
     @property
@@ -16,34 +22,49 @@ class HomebrewProvider(PackageManager):
         return shutil.which("brew") is not None
 
     def install(self, packages: List[str]) -> None:
+        """
+        Install packages via Homebrew.
+        
+        Raises:
+            CommandError: If installation fails
+        """
         if not self.is_available():
-            log_error("Homebrew is not installed.")
-            return
+            raise RuntimeError("Homebrew is not installed.")
 
         run(["brew", "install"] + packages)
 
     def uninstall(self, packages: List[str]) -> None:
+        """
+        Remove Homebrew packages.
+        
+        Raises:
+            CommandError: If uninstall fails
+        """
         if not self.is_available():
-            return
+            raise RuntimeError("Homebrew is not installed.")
         
         run(["brew", "uninstall"] + packages)
 
     def upgrade(self, packages: Optional[List[str]] = None) -> None:
+        """
+        Upgrade Homebrew packages.
+        
+        Raises:
+            CommandError: If upgrade fails
+        """
         if not self.is_available():
-            return
+            raise RuntimeError("Homebrew is not installed.")
 
         if not packages:
-            log_info("Upgrading all Homebrew packages...")
             run(["brew", "upgrade"])
         else:
-            log_info(f"Upgrading: {', '.join(packages)}")
             run(["brew", "upgrade"] + packages)
 
     def list_packages(self) -> List[Package]:
+        """Return list of installed Homebrew packages (installed on request only)."""
         if not self.is_available():
             return []
 
-        # 1. Get installed on request
         try:
             req_result = subprocess.run(
                 ["brew", "list", "--installed-on-request"],
@@ -56,7 +77,6 @@ class HomebrewProvider(PackageManager):
             requested_pkgs = set(req_result.stdout.strip().split('\n'))
             requested_pkgs = {p.strip() for p in requested_pkgs if p.strip()}
             
-            # 2. Get versions
             ver_result = subprocess.run(
                 ["brew", "list", "--versions"],
                 capture_output=True,
@@ -73,45 +93,27 @@ class HomebrewProvider(PackageManager):
                 parts = line.strip().split()
                 if len(parts) >= 2:
                     name = parts[0]
-                    # Check if this package was requested
                     if name in requested_pkgs:
                         version = parts[1]
                         packages.append(Package(
                             name=name,
                             provider=self.name,
-                            id=name,  # brew doesn't really have IDs like flatpak, use name
+                            id=name,
                             version=version,
                             installed=True
                         ))
 
             return packages
 
-        except Exception as e:
-            log_error(f"Failed to list homebrew packages: {e}")
+        except Exception:
             return []
 
     def search(self, query: str) -> List[Package]:
+        """Search for packages in Homebrew."""
         if not self.is_available():
             return []
-        log_info(f"Searching for '{Style.BOLD}{query}{Style.RESET}' in Homebrew...")
         
-        # brew search <query> --desc --eval-all
-        # but output format is messy.
-        # brew search --json is not available, but 'brew info --json=v2 <pkg>' works for known pkgs.
-        # Efficient search with details is tricky with brew.
-        # We'll parse the text output of 'brew search --eval-all --desc <query>'
-        # content format:
-        # ==> Formulae
-        # pkgname: description
-        # ...
-        # ==> Casks
-        # ...
-
         try:
-             # --eval-all might be slow, maybe skip? But we need descriptions? 
-             # Let's just use 'brew search <query>' and then maybe 'brew info' for details? Too slow.
-             # Actually 'brew search --desc <query>' gives "name: description"
-             
              cmd = ["brew", "search", "--desc", query]
              result = subprocess.run(cmd, capture_output=True, text=True)
              
@@ -121,7 +123,6 @@ class HomebrewProvider(PackageManager):
              
              lines = result.stdout.strip().split('\n')
              
-             # section helper
              current_type = "formula" 
              
              for line in lines:
@@ -134,7 +135,6 @@ class HomebrewProvider(PackageManager):
                      current_type = "cask"
                      continue
                  
-                 # Line format: "name: description"
                  if ": " in line:
                      parts = line.split(": ", 1)
                      name = parts[0]
@@ -147,21 +147,23 @@ class HomebrewProvider(PackageManager):
                      name=name,
                      provider=self.name,
                      id=name,
-                     version="unknown",  # Getting version requires brew info, expensive for all results
+                     version="unknown",
                      description=desc,
                      extra={"type": current_type}
                  ))
              
              return packages
 
-        except Exception as e:
-            log_warn(f"Homebrew search failed: {e}")
+        except Exception:
             return []
 
     def clean(self) -> None:
+        """
+        Run Homebrew cleanup.
+        
+        Raises:
+            CommandError: If cleanup fails
+        """
         if not self.is_available():
-            log_error("Homebrew is not installed.")
-            return
-        log_info("Running Homebrew cleanup...")
+            raise RuntimeError("Homebrew is not installed.")
         run(["brew", "cleanup"])
-

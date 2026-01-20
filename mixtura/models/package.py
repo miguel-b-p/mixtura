@@ -1,7 +1,7 @@
 """
-Data models for Mixtura.
+Package data model for Mixtura.
 
-Provides type-safe representations of packages and requests,
+Provides type-safe representations of packages,
 replacing loose Dict[str, Any] usage throughout the codebase.
 """
 

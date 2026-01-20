@@ -1,3 +1,9 @@
+"""
+Update checker for Mixtura.
+
+Checks for new versions on GitHub.
+"""
+
 import hashlib
 import os
 import sys
@@ -6,13 +12,13 @@ import json
 import base64
 import ssl
 
-from mixtura.utils import Style
+from mixtura.views.style import Style
 
 
 def is_nuitka_compiled():
     """Detects if the application is running as a Nuitka compiled executable."""
-    # Nuitka sets __compiled__ attribute when compiled
     return "__compiled__" in dir() or getattr(sys, 'frozen', False) or hasattr(sys, '_MEIPASS')
+
 
 def check_for_updates():
     """Checks if there is a new version available by comparing versions."""
@@ -102,7 +108,6 @@ def check_for_updates():
                  print(f"Update skipped.")
                  print()
             
-    except Exception as e:
+    except Exception:
         # Fail silently on network errors or other issues to not disrupt usage
-        # print(e)
         pass

@@ -1,3 +1,10 @@
+"""
+System utilities for Mixtura.
+
+Contains subprocess execution helpers and error types.
+Note: Style and log_* functions have been moved to the views layer.
+"""
+
 import sys
 import subprocess
 from typing import List
@@ -17,42 +24,6 @@ class CommandError(Exception):
         self.cmd = cmd
 
 
-class Style:
-    RESET = "\033[0m"
-    BOLD = "\033[1m"
-    DIM = "\033[2m"
-
-    # Logo Palette -> Semantic Names
-    ERROR = "\033[38;2;255;110;199m"     # Soup Pink (was RED)
-    SUCCESS = "\033[38;2;120;220;180m"   # Mint/Rainbow (was GREEN)
-    WARNING = "\033[38;2;210;160;100m"  # Wood/Gold (was YELLOW)
-    INFO = "\033[38;2;100;200;255m"    # Sparkle Blue (was BLUE)
-    MAIN = "\033[38;2;200;160;255m"    # Lavender/Mix (was CYAN)
-
-    ASCII = f"""{MAIN}
-    ▙▗▌ ▗      ▐              
-    ▌▘▌ ▄  ▚▗▘ ▜▀  ▌ ▌ ▙▀▖ ▝▀▖
-    ▌ ▌ ▐  ▗▚  ▐ ▖ ▌ ▌ ▌   ▞▀▌
-    ▘ ▘ ▀▘ ▘ ▘  ▀  ▝▀▘ ▘   ▝▀▘
-{RESET}"""
-
-
-def log_info(msg: str) -> None:
-    print(f"{Style.INFO}ℹ{Style.RESET}  {msg}")
-
-def log_task(msg: str) -> None:
-    print(f"{Style.BOLD}{Style.MAIN}==>{Style.RESET} {msg}")
-
-def log_success(msg: str) -> None:
-    print(f"{Style.SUCCESS}✔{Style.RESET}  {msg}")
-
-def log_warn(msg: str) -> None:
-    print(f"{Style.WARNING}⚠{Style.RESET}  {msg}")
-
-def log_error(msg: str) -> None:
-    print(f"{Style.ERROR}✖  Error:{Style.RESET} {msg}", file=sys.stderr)
-
-
 # -----------------------------------------------------------------------------
 # System Helpers
 # -----------------------------------------------------------------------------
@@ -69,6 +40,10 @@ def run(cmd: List[str], silent: bool = False, check_warnings: bool = False) -> N
     Raises:
         CommandError: If the command fails (non-zero exit code)
     """
+    # Import here to avoid circular imports
+    from mixtura.views.style import Style
+    from mixtura.views.logger import log_error, log_info, log_warn
+    
     cmd_str = " ".join(cmd)
     
     if not silent:
