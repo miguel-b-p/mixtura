@@ -1,5 +1,7 @@
 import argparse
-from typing import Dict, List
+import fnmatch
+import re
+from typing import Dict, List, Any
 
 from mixtura.utils import log_task, log_info, log_success, log_warn, log_error, Style
 from mixtura.manager import ModuleManager
@@ -9,6 +11,33 @@ def _get_manager_or_warn(name: str):
     if not mgr:
         log_warn(f"Package manager '{name}' is not available or not found.")
     return mgr
+
+def _filter_results_smart(results: List[Dict[str, Any]], pattern: str, show_all: bool) -> List[Dict[str, Any]]:
+    """
+    Filter search results based on the pattern.
+    
+    - If show_all is True: returns all results (current behavior)
+    - If pattern contains wildcards (* or ?): uses glob pattern matching
+    - Otherwise: prioritizes exact name match, falls back to all results
+    """
+    if show_all or not results:
+        return results
+    
+    # Check if pattern has wildcards
+    if '*' in pattern or '?' in pattern:
+        # Convert glob pattern to regex
+        regex_pattern = fnmatch.translate(pattern)
+        regex = re.compile(regex_pattern, re.IGNORECASE)
+        filtered = [r for r in results if regex.match(r.get('name', ''))]
+        return filtered if filtered else results
+    
+    # Exact match first
+    exact = [r for r in results if r.get('name', '').lower() == pattern.lower()]
+    if exact:
+        return exact
+    
+    # No exact match found - return all results
+    return results
 
 def cmd_add(args: argparse.Namespace) -> None:
     manager = ModuleManager.get_instance()
@@ -46,6 +75,10 @@ def cmd_add(args: argparse.Namespace) -> None:
                 if not results:
                     log_warn(f"No packages found for '{item}'.")
                     continue
+                
+                # Apply smart filtering
+                show_all = getattr(args, 'all', False)
+                results = _filter_results_smart(results, item, show_all)
                 
                 # Interactive Selection
                 print(f"\n{Style.BOLD}Found {len(results)} matches for '{item}':{Style.RESET}")
@@ -166,6 +199,10 @@ def cmd_remove(args: argparse.Namespace) -> None:
                     continue
                 
                 matches = filtered_matches
+                
+                # Apply smart filtering
+                show_all = getattr(args, 'all', False)
+                matches = _filter_results_smart(matches, item, show_all)
 
                 print(f"\n{Style.BOLD}Found {len(matches)} installed matches for '{item}':{Style.RESET}")
                 
@@ -331,8 +368,6 @@ def cmd_list(args: argparse.Namespace) -> None:
 
 def cmd_search(args: argparse.Namespace) -> None:
     manager = ModuleManager.get_instance()
-    # If args.query is a list, we handle each.
-    # Note: argparse definition for 'search' usually takes 'query' as nargs='+'
     
     for q in args.query:
         if '#' in q:
@@ -341,20 +376,46 @@ def cmd_search(args: argparse.Namespace) -> None:
              mgr = _get_manager_or_warn(prov)
              if mgr and mgr.is_available():
                  results = mgr.search(term)
+                 
+                 # Apply smart filtering
+                 show_all = getattr(args, 'all', False)
+                 results = _filter_results_smart(results, term, show_all)
+                 
                  if results:
-                     print(f"{Style.BOLD}Results for '{term}' in {prov}:{Style.RESET}")
-                     for res in results:
-                         print(f"  • {res.get('name')} ({res.get('version')}) - {res.get('description')}")
+                     print(f"\n{Style.BOLD}Found {len(results)} matches for '{term}' in {prov}:{Style.RESET}")
+                     for i, res in enumerate(results):
+                         idx = i + 1
+                         name = res.get('name', 'unknown')
+                         ver = res.get('version', '')
+                         desc = res.get('description', '')[:60]
+                         if len(res.get('description', '')) > 60: desc += "..."
+                         
+                         print(f" {Style.SUCCESS}{idx}.{Style.RESET} {Style.BOLD}{name}{Style.RESET} {Style.DIM}({prov} {ver}){Style.RESET}")
+                         if desc:
+                             print(f"    {desc}")
                  else:
                      log_warn(f"No results for '{term}' in {prov}")
         else:
              # Search all
              log_task(f"Searching for '{q}'...")
              results = manager.search_all(q)
+             
+             # Apply smart filtering
+             show_all = getattr(args, 'all', False)
+             results = _filter_results_smart(results, q, show_all)
+             
              if results:
-                 print(f"{Style.BOLD}Results for '{q}':{Style.RESET}")
-                 for res in results:
-                      prov = res.get('provider')
-                      print(f"  [{prov}] {res.get('name')} ({res.get('version')}) - {res.get('description')}")
+                 print(f"\n{Style.BOLD}Found {len(results)} matches for '{q}':{Style.RESET}")
+                 for i, res in enumerate(results):
+                     idx = i + 1
+                     name = res.get('name', 'unknown')
+                     prov = res.get('provider', 'unknown')
+                     ver = res.get('version', '')
+                     desc = res.get('description', '')[:60]
+                     if len(res.get('description', '')) > 60: desc += "..."
+                     
+                     print(f" {Style.SUCCESS}{idx}.{Style.RESET} {Style.BOLD}{name}{Style.RESET} {Style.DIM}({prov} {ver}){Style.RESET}")
+                     if desc:
+                         print(f"    {desc}")
              else:
                  log_warn(f"No results for '{q}'")

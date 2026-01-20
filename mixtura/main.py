@@ -80,6 +80,12 @@ def main() -> None:
         nargs="+", 
         help="Package names. E.g. 'git', 'nixpkgs#vim', 'flatpak#Spotify'"
     )
+    p_add.add_argument(
+        "--all", "-a",
+        action="store_true",
+        dest="all",
+        help="Show all search results instead of filtering by exact match"
+    )
     p_add.set_defaults(func=cmd_add)
 
     # UPGRADE
@@ -108,6 +114,12 @@ def main() -> None:
         nargs="+", 
         help="Package names to remove. E.g. 'git', 'flatpak#Spotify'"
     )
+    p_remove.add_argument(
+        "--all", "-a",
+        action="store_true",
+        dest="all",
+        help="Show all search results instead of filtering by exact match"
+    )
     p_remove.set_defaults(func=cmd_remove)
 
     # LIST
@@ -135,6 +147,12 @@ def main() -> None:
         "query", 
         nargs="+", 
         help="Search terms. Use 'flatpak#term' to search Flathub. Default is Nixpkgs."
+    )
+    p_search.add_argument(
+        "--all", "-a",
+        action="store_true",
+        dest="all",
+        help="Show all search results instead of filtering by exact match"
     )
     p_search.set_defaults(func=cmd_search)
 
