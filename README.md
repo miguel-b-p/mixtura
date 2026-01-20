@@ -4,7 +4,7 @@
 <p>
   <img src="assets/mixtura_logo.svg" width="500" alt="Mixtura Logo">
 
-  <h2>Mix your favorite apps in one place.</h2>
+  <h2>Mix your favorite package managers in one place.</h2>
 </p>
 </div>
 
