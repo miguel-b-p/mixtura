@@ -11,6 +11,7 @@ import urllib.request
 import json
 import base64
 import ssl
+import stat
 
 from mixtura.views.style import Style
 
@@ -94,7 +95,7 @@ def check_for_updates():
                         f.write(new_content)
                     
                     # Make executable
-                    os.chmod(temp_path, 0o755)
+                    os.chmod(temp_path, stat.S_IRWXU)
                     
                     # Atomically replace (this works on Linux even if file is busy)
                     os.replace(temp_path, executable_path)
