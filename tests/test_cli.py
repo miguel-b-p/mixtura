@@ -4,8 +4,6 @@ Tests for Mixtura CLI commands.
 Tests all CLI commands and their options using Typer's CliRunner.
 """
 
-import pytest
-from typer.testing import CliRunner
 from unittest.mock import patch, MagicMock
 
 from mixtura.cli import app
@@ -53,7 +51,7 @@ class TestAddCommand:
     @patch('mixtura.cli.check_for_updates')
     def test_add_with_package(self, mock_update, mock_orch, cli_runner):
         """Test add with a package name."""
-        result = cli_runner.invoke(app, ["add", "git"])
+        _result = cli_runner.invoke(app, ["add", "git"])
         mock_orch.install_flow.assert_called_once()
         args = mock_orch.install_flow.call_args
         assert "git" in args[0][0]  # packages list
@@ -62,7 +60,7 @@ class TestAddCommand:
     @patch('mixtura.cli.check_for_updates')
     def test_add_with_yes_flag(self, mock_update, mock_orch, cli_runner):
         """Test add with --yes flag."""
-        result = cli_runner.invoke(app, ["add", "--yes", "git"])
+        _result = cli_runner.invoke(app, ["add", "--yes", "git"])
         mock_orch.install_flow.assert_called_once()
         args, kwargs = mock_orch.install_flow.call_args
         assert kwargs.get('auto_confirm') == True or args[1] == True
@@ -71,7 +69,7 @@ class TestAddCommand:
     @patch('mixtura.cli.check_for_updates')
     def test_add_with_all_flag(self, mock_update, mock_orch, cli_runner):
         """Test add with --all flag."""
-        result = cli_runner.invoke(app, ["add", "--all", "git"])
+        _result = cli_runner.invoke(app, ["add", "--all", "git"])
         mock_orch.install_flow.assert_called_once()
         args, kwargs = mock_orch.install_flow.call_args
         assert kwargs.get('show_all') == True or args[2] == True
@@ -80,7 +78,7 @@ class TestAddCommand:
     @patch('mixtura.cli.check_for_updates')
     def test_add_with_provider_prefix(self, mock_update, mock_orch, cli_runner):
         """Test add with provider#package syntax."""
-        result = cli_runner.invoke(app, ["add", "flatpak#Spotify"])
+        _result = cli_runner.invoke(app, ["add", "flatpak#Spotify"])
         mock_orch.install_flow.assert_called_once()
         args = mock_orch.install_flow.call_args
         assert "flatpak#Spotify" in args[0][0]
@@ -105,7 +103,7 @@ class TestRemoveCommand:
     @patch('mixtura.cli.check_for_updates')
     def test_remove_with_package(self, mock_update, mock_orch, cli_runner):
         """Test remove with a package name."""
-        result = cli_runner.invoke(app, ["remove", "git"])
+        _result = cli_runner.invoke(app, ["remove", "git"])
         mock_orch.remove_flow.assert_called_once()
 
 
@@ -121,7 +119,7 @@ class TestUpgradeCommand:
     @patch('mixtura.cli.check_for_updates')
     def test_upgrade_all(self, mock_update, mock_orch, cli_runner):
         """Test upgrade without arguments upgrades all."""
-        result = cli_runner.invoke(app, ["upgrade"])
+        _result = cli_runner.invoke(app, ["upgrade"])
         mock_orch.upgrade_flow.assert_called_once()
         args = mock_orch.upgrade_flow.call_args
         assert args[0][0] == [] or args[0][0] is None
@@ -130,7 +128,7 @@ class TestUpgradeCommand:
     @patch('mixtura.cli.check_for_updates')
     def test_upgrade_specific_provider(self, mock_update, mock_orch, cli_runner):
         """Test upgrade with specific provider."""
-        result = cli_runner.invoke(app, ["upgrade", "nixpkgs"])
+        _result = cli_runner.invoke(app, ["upgrade", "nixpkgs"])
         mock_orch.upgrade_flow.assert_called_once()
         args = mock_orch.upgrade_flow.call_args
         assert "nixpkgs" in args[0][0]
@@ -148,7 +146,7 @@ class TestListCommand:
     @patch('mixtura.cli.check_for_updates')
     def test_list_all(self, mock_update, mock_orch, cli_runner):
         """Test list without arguments lists all."""
-        result = cli_runner.invoke(app, ["list"])
+        _result = cli_runner.invoke(app, ["list"])
         mock_orch.list_flow.assert_called_once()
         args = mock_orch.list_flow.call_args
         assert args[0][0] is None
@@ -157,7 +155,7 @@ class TestListCommand:
     @patch('mixtura.cli.check_for_updates')
     def test_list_specific_provider(self, mock_update, mock_orch, cli_runner):
         """Test list with specific provider filter."""
-        result = cli_runner.invoke(app, ["list", "flatpak"])
+        _result = cli_runner.invoke(app, ["list", "flatpak"])
         mock_orch.list_flow.assert_called_once()
         args = mock_orch.list_flow.call_args
         assert args[0][0] == "flatpak"
@@ -181,7 +179,7 @@ class TestSearchCommand:
     @patch('mixtura.cli.check_for_updates')
     def test_search_with_query(self, mock_update, mock_orch, cli_runner):
         """Test search with a query."""
-        result = cli_runner.invoke(app, ["search", "git"])
+        _result = cli_runner.invoke(app, ["search", "git"])
         mock_orch.search_flow.assert_called_once()
         args = mock_orch.search_flow.call_args
         assert "git" in args[0][0]
@@ -190,7 +188,7 @@ class TestSearchCommand:
     @patch('mixtura.cli.check_for_updates')
     def test_search_with_all_flag(self, mock_update, mock_orch, cli_runner):
         """Test search with --all flag."""
-        result = cli_runner.invoke(app, ["search", "--all", "git"])
+        _result = cli_runner.invoke(app, ["search", "--all", "git"])
         mock_orch.search_flow.assert_called_once()
         args, kwargs = mock_orch.search_flow.call_args
         assert kwargs.get('show_all') == True
@@ -199,7 +197,7 @@ class TestSearchCommand:
     @patch('mixtura.cli.check_for_updates')
     def test_search_provider_specific(self, mock_update, mock_orch, cli_runner):
         """Test search with provider#query syntax."""
-        result = cli_runner.invoke(app, ["search", "flatpak#spotify"])
+        _result = cli_runner.invoke(app, ["search", "flatpak#spotify"])
         mock_orch.search_flow.assert_called_once()
         args = mock_orch.search_flow.call_args
         assert "flatpak#spotify" in args[0][0]
@@ -217,14 +215,14 @@ class TestCleanCommand:
     @patch('mixtura.cli.check_for_updates')
     def test_clean_all(self, mock_update, mock_orch, cli_runner):
         """Test clean without arguments cleans all."""
-        result = cli_runner.invoke(app, ["clean"])
+        _result = cli_runner.invoke(app, ["clean"])
         mock_orch.clean_flow.assert_called_once()
     
     @patch('mixtura.cli.orchestrator')
     @patch('mixtura.cli.check_for_updates')
     def test_clean_specific_provider(self, mock_update, mock_orch, cli_runner):
         """Test clean with specific provider."""
-        result = cli_runner.invoke(app, ["clean", "nixpkgs"])
+        _result = cli_runner.invoke(app, ["clean", "nixpkgs"])
         mock_orch.clean_flow.assert_called_once()
         args = mock_orch.clean_flow.call_args
         assert "nixpkgs" in args[0][0]
