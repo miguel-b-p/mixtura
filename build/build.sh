@@ -4,7 +4,7 @@
 cd "$(dirname "$0")/.."
 
 # Define paths (now relative to project root)
-SOURCE_FILE="mixtura/main.py"
+SOURCE_FILE="mixtura/cli.py"
 OUTPUT_DIR="bin"
 VERSION_FILE="bin/VERSION"
 

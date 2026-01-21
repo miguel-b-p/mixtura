@@ -7,9 +7,9 @@
 flake.lock
 
 # ignore build files
-main.build
-main.dist
-main.onefile-build
+*.build
+*.dist
+*.onefile-build
 
 # ignore python cache files.
 __pycache__
