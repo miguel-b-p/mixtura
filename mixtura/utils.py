@@ -63,8 +63,7 @@ def run(
         - Never interpolate user input directly into commands
     """
     # Import here to avoid circular imports
-    from mixtura.views.style import Style
-    from mixtura.views.logger import log_error, log_info, log_warn
+    from mixtura.ui import console, log_error, log_info, log_warn
     
     # Security: Ensure cmd is a list, not a string
     if isinstance(cmd, str):
@@ -79,7 +78,7 @@ def run(
     cmd_str = " ".join(shlex.quote(arg) for arg in cmd)
     
     if not silent:
-        print(f"\n   {Style.DIM}$ {cmd_str}{Style.RESET}")
+        console.print(f"\n   [dim]$ {cmd_str}[/dim]")
 
     # Prepare environment
     run_env = None

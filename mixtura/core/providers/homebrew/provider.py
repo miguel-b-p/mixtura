@@ -7,8 +7,8 @@ Provides integration with Homebrew package manager (macOS/Linux).
 import shutil
 from typing import List, Optional
 
-from mixtura.models.base import PackageManager, require_availability
-from mixtura.models.package import Package
+from mixtura.core.providers.base import PackageManager, require_availability
+from mixtura.core.package import Package
 from mixtura.cache import SearchCache
 
 

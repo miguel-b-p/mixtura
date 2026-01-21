@@ -1,0 +1,1 @@
+# Flatpak provider package

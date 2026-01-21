@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from typing import List, Optional, Any, Dict
 
-from mixtura.models.package import Package
+from mixtura.core.package import Package
 
 
 class SearchCache:

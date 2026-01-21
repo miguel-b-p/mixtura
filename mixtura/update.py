@@ -13,7 +13,7 @@ import base64
 import ssl
 import stat
 
-from mixtura.views.style import Style
+from mixtura.ui import console
 
 
 def is_nuitka_compiled():
@@ -50,22 +50,22 @@ def check_for_updates():
 
         # 3. Compare versions
         if local_version != remote_version:
-            print(f"{Style.BOLD}{Style.WARNING}NOTICE: A new version of Mixtura is available! ({local_version} → {remote_version}){Style.RESET}")
+            console.print(f"[warning bold]NOTICE: A new version of Mixtura is available! ({local_version} → {remote_version})[/warning bold]")
             
             # If running as Python module, only show notice (can't self-update)
             if not is_compiled:
-                print(f"{Style.INFO}Update via: pip install --upgrade mixtura (Soon on PyPI){Style.RESET}")
-                print()
+                console.print(f"[info]Update via: pip install --upgrade mixtura (Soon on PyPI)[/info]")
+                console.print()
                 return
             
             # Interactive update (only for compiled executables)
             try:
-                choice = input(f"Do you want to update to the latest version? ({Style.BOLD}y/N{Style.RESET}): ")
+                choice = input(f"Do you want to update to the latest version? (y/N): ")
             except EOFError:
                 choice = 'n'
 
             if choice.lower() == 'y':
-                print(f"{Style.INFO}Downloading update...{Style.RESET}")
+                console.print(f"[info]Downloading update...[/info]")
                 update_url = "https://raw.githubusercontent.com/miguel-b-p/mixtura/master/bin/mixtura"
                 
                 try:
@@ -86,7 +86,7 @@ def check_for_updates():
                     downloaded_hash = sha256_hash.hexdigest()
                     
                     if downloaded_hash.lower() != expected_hash.lower():
-                        print(f"{Style.ERROR}Update failed: Hash mismatch! The downloaded file may be corrupted.{Style.RESET}")
+                        console.print(f"[error]Update failed: Hash mismatch! The downloaded file may be corrupted.[/error]")
                         return
                     
                     # Write to a temp file first
@@ -100,15 +100,16 @@ def check_for_updates():
                     # Atomically replace (this works on Linux even if file is busy)
                     os.replace(temp_path, executable_path)
                     
-                    print(f"{Style.SUCCESS}Update successful! Please restart Mixtura.{Style.RESET}")
+                    console.print(f"[success]Update successful! Please restart Mixtura.[/success]")
                     sys.exit(0)
                     
                 except Exception as e:
-                    print(f"{Style.ERROR}Update failed: {e}{Style.RESET}")
+                    console.print(f"[error]Update failed: {e}[/error]")
             else:
-                 print(f"Update skipped.")
-                 print()
+                 console.print(f"Update skipped.")
+                 console.print()
             
     except Exception:
         # Fail silently on network errors or other issues to not disrupt usage
         pass
+

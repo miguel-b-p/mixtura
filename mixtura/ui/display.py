@@ -1,17 +1,19 @@
 """
-Display functions for Mixtura.
+Display functions for Mixtura using Rich.
 
-Handles formatted output of packages and operation results.
+Provides beautiful formatted output for packages and operation results.
 """
 
-from typing import List, Union, TYPE_CHECKING
+from typing import List, Union, Optional, TYPE_CHECKING
 
-from mixtura.views.style import Style
-from mixtura.views.logger import log_success, log_error, log_warn
+from rich.table import Table
+from rich.panel import Panel
+from rich.text import Text
+
+from mixtura.ui import console, log_success, log_error, log_warn
 
 if TYPE_CHECKING:
-    from mixtura.models.package import Package
-    from mixtura.models.results import OperationResult
+    from mixtura.core.package import Package
 
 
 def display_package_list(
@@ -21,7 +23,7 @@ def display_package_list(
     max_desc_length: int = 60
 ) -> None:
     """
-    Display a formatted list of packages.
+    Display a formatted list of packages using Rich.
     
     Args:
         packages: List of Package objects or dicts with package info
@@ -29,7 +31,8 @@ def display_package_list(
         show_index: Whether to show numbered indices
         max_desc_length: Maximum description length before truncation
     """
-    print(f"\n{Style.BOLD}{title}:{Style.RESET}")
+    console.print()
+    console.print(f"[main bold]{title}:[/main bold]")
     
     for i, pkg in enumerate(packages, 1):
         # Support both Package objects and legacy dicts
@@ -50,14 +53,12 @@ def display_package_list(
         
         # Format output
         if show_index:
-            print(f" {Style.SUCCESS}{i}.{Style.RESET} {Style.BOLD}{name}{Style.RESET} "
-                  f"{Style.DIM}({provider} {version}){Style.RESET}")
+            console.print(f" [success]{i}.[/success] [bold]{name}[/bold] [dim]({provider} {version})[/dim]")
         else:
-            print(f"  {Style.SUCCESS}•{Style.RESET} {Style.BOLD}{name}{Style.RESET} "
-                  f"{Style.DIM}({version}){Style.RESET}")
+            console.print(f"  [success]•[/success] [bold]{name}[/bold] [dim]({version})[/dim]")
         
         if desc:
-            print(f"    {desc}")
+            console.print(f"    {desc}")
 
 
 def display_installed_packages(
@@ -72,26 +73,25 @@ def display_installed_packages(
         provider_name: Name of the provider
     """
     if not packages:
-        print(f"{Style.DIM}No packages found in {provider_name}{Style.RESET}")
+        console.print(f"[dim]No packages found in {provider_name}[/dim]")
         return
     
-    print(f"{Style.BOLD}{Style.INFO}:: {provider_name} ({len(packages)}){Style.RESET}")
+    console.print(f"[info bold]:: {provider_name} ({len(packages)})[/info bold]")
     
     for pkg in packages:
         # Support both Package objects and legacy dicts
         if hasattr(pkg, 'name'):
             name = pkg.name
-            extra = pkg.version or pkg.id or pkg.origin or ''
+            extra = pkg.version or pkg.id or getattr(pkg, 'origin', '') or ''
         else:
             name = pkg.get('name', 'unknown')
             extra = pkg.get('version') or pkg.get('id') or pkg.get('origin') or ''
         
-        print(f"  {Style.SUCCESS}•{Style.RESET} {Style.BOLD}{name}{Style.RESET} "
-              f"{Style.DIM}({extra}){Style.RESET}")
+        console.print(f"  [success]•[/success] [bold]{name}[/bold] [dim]({extra})[/dim]")
 
 
 def display_operation_results(
-    results: List["OperationResult"],
+    results: List[tuple],
     success_msg: str = "Operation completed successfully.",
     partial_msg: str = "Operation completed with errors."
 ) -> None:
@@ -99,41 +99,11 @@ def display_operation_results(
     Display results of operations (install/upgrade/etc).
     
     Args:
-        results: List of OperationResult objects
-        success_msg: Message to show if all succeeded
-        partial_msg: Message to show if some failed
-    """
-    print()
-    success_count = 0
-    
-    for result in results:
-        if result.success:
-            log_success(result.message)
-            success_count += 1
-        else:
-            log_error(result.message)
-    
-    total = len(results)
-    if success_count == total:
-        log_success(success_msg)
-    else:
-        log_warn(f"{partial_msg} ({total - success_count} error(s))")
-
-
-def print_results_summary(
-    results: List[tuple],
-    success_msg: str = "Operation completed successfully.",
-    partial_msg: str = "Operation completed with errors."
-) -> None:
-    """
-    Print a summary of operation results.
-    
-    Args:
         results: List of (name, success, message) tuples
         success_msg: Message to show if all succeeded
         partial_msg: Message to show if some failed
     """
-    print()
+    console.print()
     success_count = 0
     
     for name, success, message in results:

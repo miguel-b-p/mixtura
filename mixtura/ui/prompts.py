@@ -1,16 +1,17 @@
 """
-Interactive prompts for Mixtura.
+Interactive prompts for Mixtura using Rich.
 
 Handles user input for package selection and confirmations.
 """
 
 from typing import List, Optional, Union, TYPE_CHECKING
 
-from mixtura.views.style import Style
-from mixtura.views.logger import log_error
+from rich.prompt import Prompt, Confirm
+
+from mixtura.ui import console, log_error
 
 if TYPE_CHECKING:
-    from mixtura.models.package import Package
+    from mixtura.core.package import Package
 
 
 def select_package(
@@ -20,7 +21,7 @@ def select_package(
     allow_skip: bool = True
 ) -> Optional[List[Union["Package", dict]]]:
     """
-    Interactive menu for package selection.
+    Interactive menu for package selection using Rich.
     
     Args:
         packages: List of packages to choose from
@@ -44,7 +45,7 @@ def select_package(
         options += ", 's' to skip"
     
     try:
-        choice = input(f"{Style.INFO}{prompt} ({options}): {Style.RESET}")
+        choice = Prompt.ask(f"[info]{prompt}[/info] ({options})")
         choice = choice.strip().lower()
         
         # Handle skip
@@ -68,7 +69,7 @@ def select_package(
             return None
             
     except (EOFError, KeyboardInterrupt):
-        print()
+        console.print()
         return None
 
 
@@ -77,7 +78,7 @@ def confirm_action(
     default: bool = False
 ) -> bool:
     """
-    Ask user for confirmation.
+    Ask user for confirmation using Rich.
     
     Args:
         message: The confirmation message
@@ -86,17 +87,8 @@ def confirm_action(
     Returns:
         True if confirmed, False otherwise
     """
-    default_hint = "Y/n" if default else "y/N"
-    
     try:
-        choice = input(f"{Style.WARNING}{message} ({default_hint}): {Style.RESET}")
-        choice = choice.strip().lower()
-        
-        if not choice:
-            return default
-        
-        return choice in ('y', 'yes')
-        
+        return Confirm.ask(f"[warning]{message}[/warning]", default=default)
     except (EOFError, KeyboardInterrupt):
-        print()
+        console.print()
         return False
