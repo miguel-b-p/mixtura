@@ -82,66 +82,145 @@ class NixProvider(PackageManager):
             packages = []
             elements = data.get("elements", {})
             
-            def _resolve_version_fallback(store_path: str, pkg_name: str) -> str:
-                if not store_path or not pkg_name:
+            def _get_version_from_store_path(store_path: str) -> str:
+                """
+                Extract version from a Nix store path by parsing the path directly.
+                Store path format: /nix/store/HASH-package-name-version
+                This is more robust than assuming fixed hash lengths.
+                """
+                if not store_path:
                     return "unknown"
+                
                 try:
-                    rc, out, _ = self.run_capture(
-                        ["nix-store", "--query", "--references", store_path]
-                    )
-                    if rc != 0:
+                    # Extract the last component of the path
+                    # e.g., /nix/store/abc123...-cachix-1.10.1-bin -> abc123...-cachix-1.10.1-bin
+                    parts = store_path.rstrip('/').split('/')
+                    if not parts:
                         return "unknown"
                     
-                    candidates = []
-                    for line in out.splitlines():
-                        if pkg_name in line:
-                            candidates.append(line.strip())
+                    filename = parts[-1]
                     
-                    for candidate in candidates:
-                        parts = candidate.split('/')
-                        if len(parts) < 4: continue
-                        filename = parts[3] 
+                    # Split by '-' and find the first part that starts with a hash
+                    # Then reconstruct the package name without the hash
+                    dash_parts = filename.split('-')
+                    if len(dash_parts) < 2:
+                        return "unknown"
+                    
+                    # First part is always the hash, skip it
+                    # Remaining parts form: package-name-version or package-name or just name
+                    name_version_parts = dash_parts[1:]
+                    pkg_full_name = '-'.join(name_version_parts)
+                    
+                    if not pkg_full_name:
+                        return "unknown"
+                    
+                    # Find the last occurrence of '-' followed by a digit
+                    # This is more reliable than hard-coded index positions
+                    for i in range(len(pkg_full_name) - 1, -1, -1):
+                        if pkg_full_name[i] == '-' and i + 1 < len(pkg_full_name) and pkg_full_name[i+1].isdigit():
+                            return pkg_full_name[i+1:]
+                    
+                    # No version found in the name
+                    return "unknown"
+                except Exception:
+                    return "unknown"
+
+            def _get_version_from_references(store_path: str, package_name: str) -> str:
+                """
+                Extract version from package references using nix-store --query --references.
+                This is used as a fallback when the primary version extraction fails.
+                
+                Args:
+                    store_path: The Nix store path to query
+                    package_name: The package name to search for in references
+                
+                Returns:
+                    Version string or "unknown" if not found
+                """
+                try:
+                    returncode, stdout, stderr = self.run_capture(
+                        ["nix-store", "--query", "--references", store_path]
+                    )
+                    if returncode != 0:
+                        return "unknown"
+                    
+                    # Parse each reference line
+                    for line in stdout.strip().split('\n'):
+                        line = line.strip()
+                        if not line or package_name not in line:
+                            continue
                         
-                        if len(filename) <= 33: continue
-                        name_ver = filename[33:]
+                        # Extract version from the reference path
+                        # e.g., /nix/store/hash-bottles-60.1-bwrap -> 60.1
+                        parts = line.rstrip('/').split('/')
+                        if not parts:
+                            continue
                         
-                        for i in range(len(name_ver)):
-                             if name_ver[i] == '-' and i + 1 < len(name_ver) and name_ver[i+1].isdigit():
-                                 return name_ver[i+1:]
+                        filename = parts[-1]
+                        dash_parts = filename.split('-')
+                        if len(dash_parts) < 2:
+                            continue
+                        
+                        # Skip the hash (first part) and reconstruct the name-version
+                        name_version_parts = dash_parts[1:]
+                        pkg_full_name = '-'.join(name_version_parts)
+                        
+                        # Find version: look for '-' followed by a digit
+                        for i in range(len(pkg_full_name) - 1, -1, -1):
+                            if pkg_full_name[i] == '-' and i + 1 < len(pkg_full_name) and pkg_full_name[i+1].isdigit():
+                                version = pkg_full_name[i+1:]
+                                # Remove common suffixes like -bwrap, -unwrapped
+                                for suffix in ['-bwrap', '-unwrapped', '-bin', '-cli']:
+                                    if version.endswith(suffix):
+                                        version = version[:version.rfind(suffix)]
+                                return version
                     
                     return "unknown"
                 except Exception:
                     return "unknown"
 
-            def _extract_version(store_paths: List[str], pkg_name: str) -> str:
-                if not store_paths: return "unknown"
+            def _extract_version(element_details: dict, store_paths: List[str]) -> str:
+                """
+                Extract version from Nix profile element details.
                 
-                path = store_paths[0]
-                version = "unknown"
-                try:
-                     parts = path.split('/')
-                     if len(parts) > 3 and parts[1] == 'nix' and parts[2] == 'store':
-                         filename = parts[3]
-                         name_ver = filename[33:] # skip hash and dash
-                         
-                         for i in range(len(name_ver)):
-                             if name_ver[i] == '-' and i + 1 < len(name_ver) and name_ver[i+1].isdigit():
-                                 version = name_ver[i+1:]
-                                 break
-                except Exception:
-                    pass
+                Priority:
+                1. Use 'version' field from JSON if available
+                2. Parse version from store path name
+                3. Query references using nix-store --query --references
+                4. Fall back to "unknown"
+                """
+                # First, check if JSON already has version info
+                if "version" in element_details:
+                    version = element_details["version"]
+                    if version:
+                        return str(version)
                 
+                # Fall back to querying the store path
+                if not store_paths:
+                    return "unknown"
+                
+                # Try to extract from store path first
+                version = _get_version_from_store_path(store_paths[0])
                 if version != "unknown":
                     return version
-                    
-                return _resolve_version_fallback(path, pkg_name)
+                
+                # Final fallback: query references
+                # Extract package name from element details to use in reference search
+                package_name = element_details.get("attrPath", "").split('.')[-1]
+                if not package_name:
+                    package_name = element_details.get("originalUrl", "").split('#')[-1]
+                
+                if package_name:
+                    return _get_version_from_references(store_paths[0], package_name)
+                
+                return "unknown"
 
             # Handle dict structure (common in newer Nix versions)
             if isinstance(elements, dict):
                 for name, details in elements.items():
                     origin = details.get("originalUrl") or details.get("attrPath", "unknown")
                     store_paths = details.get("storePaths", [])
-                    version = _extract_version(store_paths, name)
+                    version = _extract_version(details, store_paths)
                     packages.append(Package(
                         name=name,
                         provider=self.name,
@@ -157,7 +236,7 @@ class NixProvider(PackageManager):
                     attr_path = element.get("attrPath") or element.get("url", "unknown")
                     name = attr_path.split('.')[-1] if '.' in attr_path else attr_path
                     store_paths = element.get("storePaths", [])
-                    version = _extract_version(store_paths, name)
+                    version = _extract_version(element, store_paths)
                     packages.append(Package(
                         name=name,
                         provider=self.name,
