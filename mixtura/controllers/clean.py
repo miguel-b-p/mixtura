@@ -5,7 +5,9 @@ Handles cleanup and garbage collection commands.
 """
 
 import argparse
+from typing import List
 
+from mixtura.models.base import PackageManager
 from mixtura.controllers.base import BaseController
 from mixtura.views import log_task, log_info, log_warn, log_success, log_error
 from mixtura.utils import CommandError
@@ -18,6 +20,36 @@ class CleanController(BaseController):
     Handles garbage collection for one or more providers.
     """
     
+    def _clean_manager(self, mgr: PackageManager, errors: List[str]) -> None:
+        """
+        Clean a specific manager and collect errors.
+        
+        Args:
+            mgr: The package manager to clean
+            errors: List to append error messages to
+        """
+        log_task(f"Cleaning {mgr.name}...")
+        try:
+            mgr.clean()
+        except CommandError as e:
+            errors.append(f"{mgr.name}: {e}")
+        except Exception as e:
+            errors.append(f"{mgr.name}: {e}")
+
+    def _report_results(self, errors: List[str]) -> None:
+        """
+        Report the results of the clean operation.
+        
+        Args:
+            errors: List of error messages collected during clean
+        """
+        if errors:
+            for err in errors:
+                log_error(err)
+            log_warn(f"Clean completed with {len(errors)} error(s).")
+        else:
+            log_success("Clean complete.")
+
     def execute(self, args: argparse.Namespace) -> None:
         """
         Execute the clean command.
@@ -33,20 +65,9 @@ class CleanController(BaseController):
             log_task("Cleaning all available providers...")
             for mgr in self.manager.get_all_managers():
                 if mgr.is_available():
-                    log_info(f"Cleaning {mgr.name}...")
-                    try:
-                        mgr.clean()
-                    except CommandError as e:
-                        errors.append(f"{mgr.name}: {e}")
-                    except Exception as e:
-                        errors.append(f"{mgr.name}: {e}")
+                    self._clean_manager(mgr, errors)
             
-            if errors:
-                for err in errors:
-                    log_error(err)
-                log_warn(f"Clean completed with {len(errors)} error(s).")
-            else:
-                log_success("Clean complete.")
+            self._report_results(errors)
             return
         
         # Clean specific providers
@@ -60,20 +81,9 @@ class CleanController(BaseController):
                 log_error(f"Provider '{mgr.name}' is not available.")
                 continue
                 
-            log_task(f"Cleaning {mgr.name}...")
-            try:
-                mgr.clean()
-            except CommandError as e:
-                errors.append(f"{mgr.name}: {e}")
-            except Exception as e:
-                errors.append(f"{mgr.name}: {e}")
+            self._clean_manager(mgr, errors)
         
-        if errors:
-            for err in errors:
-                log_error(err)
-            log_warn(f"Clean completed with {len(errors)} error(s).")
-        else:
-            log_success("Clean process finished.")
+        self._report_results(errors)
 
 
 # Module-level function for argparse compatibility
