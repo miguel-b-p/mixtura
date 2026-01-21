@@ -89,18 +89,24 @@ class RemoveController(BaseController):
                     # Apply smart filtering
                     show_all = getattr(args, 'all', False)
                     matches = self.filter_results_smart(matches, item, show_all)
-
-                    # Display using View
-                    display_package_list(matches, f"Found {len(matches)} installed matches for '{item}'")
                     
-                    # Get selection (allow selecting all)
-                    selected_list = select_package(matches, "Select a package to remove", allow_all=True)
-                    
-                    if selected_list is None:
-                        continue
-                    elif not selected_list:
-                        print("Skipping...")
-                        continue
+                    # Auto-select if --yes is set and only one high-confidence result
+                    auto_yes = getattr(args, 'yes', False)
+                    if auto_yes and len(matches) == 1:
+                        selected_list = matches
+                        log_info(f"Auto-selecting the only match for '{item}'")
+                    else:
+                        # Display using View
+                        display_package_list(matches, f"Found {len(matches)} installed matches for '{item}'")
+                        
+                        # Get selection (allow selecting all)
+                        selected_list = select_package(matches, "Select a package to remove", allow_all=True)
+                        
+                        if selected_list is None:
+                            continue
+                        elif not selected_list:
+                            print("Skipping...")
+                            continue
                     
                     for selected in selected_list:
                         prov = selected.provider if hasattr(selected, 'provider') else selected.get('provider', 'unknown')

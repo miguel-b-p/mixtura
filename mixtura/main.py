@@ -99,6 +99,12 @@ def main() -> None:
         dest="all",
         help="Show all search results instead of filtering by exact match"
     )
+    p_add.add_argument(
+        "--yes", "-y",
+        action="store_true",
+        dest="yes",
+        help="Auto-select if only one high-confidence result (e.g. exact name match)"
+    )
     p_add.set_defaults(func=cmd_add)
 
     # UPGRADE
@@ -132,6 +138,12 @@ def main() -> None:
         action="store_true",
         dest="all",
         help="Show all search results instead of filtering by exact match"
+    )
+    p_remove.add_argument(
+        "--yes", "-y",
+        action="store_true",
+        dest="yes",
+        help="Auto-select if only one high-confidence result (e.g. exact name match)"
     )
     p_remove.set_defaults(func=cmd_remove)
 

@@ -57,17 +57,23 @@ class AddController(BaseController):
                     show_all = getattr(args, 'all', False)
                     results = self.filter_results_smart(results, item, show_all)
                     
-                    # Display results using View
-                    display_package_list(results, f"Found {len(results)} matches for '{item}'")
-                    
-                    # Get selection using View
-                    selected_list = select_package(results, "Select a package to add")
-                    
-                    if selected_list is None:
-                        continue
-                    elif not selected_list:
-                        print("Skipping...")
-                        continue
+                    # Auto-select if --yes is set and only one high-confidence result
+                    auto_yes = getattr(args, 'yes', False)
+                    if auto_yes and len(results) == 1:
+                        selected_list = results
+                        log_info(f"Auto-selecting the only match for '{item}'")
+                    else:
+                        # Display results using View
+                        display_package_list(results, f"Found {len(results)} matches for '{item}'")
+                        
+                        # Get selection using View
+                        selected_list = select_package(results, "Select a package to add")
+                        
+                        if selected_list is None:
+                            continue
+                        elif not selected_list:
+                            print("Skipping...")
+                            continue
                     
                     selected = selected_list[0]
                     prov = selected.provider if hasattr(selected, 'provider') else selected.get('provider', 'unknown')
