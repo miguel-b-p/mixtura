@@ -4,11 +4,7 @@ Display functions for Mixtura using Rich.
 Provides beautiful formatted output for packages and operation results.
 """
 
-from typing import List, Union, Optional, TYPE_CHECKING
-
-from rich.table import Table
-from rich.panel import Panel
-from rich.text import Text
+from typing import List, Union, TYPE_CHECKING
 
 from mixtura.ui import console, log_success, log_error, log_warn
 

@@ -108,7 +108,8 @@ class FlatpakProvider(PackageManager):
                 lines = lines[1:]
 
             for line in lines:
-                if not line.strip(): continue
+                if not line.strip():
+                    continue
                 parts = line.split('\t')
                 
                 # Fallback for splitting if tabs aren't reliable

@@ -8,7 +8,7 @@ Note: Style and log_* functions have been moved to the views layer.
 import sys
 import subprocess
 import shlex
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 
 class CommandError(Exception):
@@ -130,7 +130,7 @@ def run(
         )
     except subprocess.CalledProcessError as e:
         print()  # Blank line to separate
-        log_error(f"Failed to execute command.")
+        log_error("Failed to execute command.")
         log_info(f"Command: {cmd_str}")
         log_info(f"Exit code: {e.returncode}")
         raise CommandError(

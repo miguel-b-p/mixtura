@@ -60,7 +60,6 @@ def log_warn(msg: str) -> None:
 
 def log_error(msg: str) -> None:
     """Output an error message to stderr."""
-    import sys
     err_console = Console(theme=MIXTURA_THEME, stderr=True, highlight=False)
     err_console.print(f"[error]✖  Error:[/error] {msg}")
 

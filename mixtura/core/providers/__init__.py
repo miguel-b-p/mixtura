@@ -16,7 +16,7 @@ _loaded = False
 
 def _load_providers() -> None:
     """Load all providers explicitly."""
-    global _providers_cache, _loaded
+    global _loaded
     
     if _loaded:
         return

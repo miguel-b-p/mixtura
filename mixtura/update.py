@@ -54,18 +54,18 @@ def check_for_updates():
             
             # If running as Python module, only show notice (can't self-update)
             if not is_compiled:
-                console.print(f"[info]Update via: pip install --upgrade mixtura (Soon on PyPI)[/info]")
+                console.print("[info]Update via: pip install --upgrade mixtura (Soon on PyPI)[/info]")
                 console.print()
                 return
             
             # Interactive update (only for compiled executables)
             try:
-                choice = input(f"Do you want to update to the latest version? (y/N): ")
+                choice = input("Do you want to update to the latest version? (y/N): ")
             except EOFError:
                 choice = 'n'
 
             if choice.lower() == 'y':
-                console.print(f"[info]Downloading update...[/info]")
+                console.print("[info]Downloading update...[/info]")
                 update_url = "https://raw.githubusercontent.com/miguel-b-p/mixtura/master/bin/mixtura"
                 
                 try:
@@ -86,7 +86,7 @@ def check_for_updates():
                     downloaded_hash = sha256_hash.hexdigest()
                     
                     if downloaded_hash.lower() != expected_hash.lower():
-                        console.print(f"[error]Update failed: Hash mismatch! The downloaded file may be corrupted.[/error]")
+                        console.print("[error]Update failed: Hash mismatch! The downloaded file may be corrupted.[/error]")
                         return
                     
                     # Write to a temp file first
@@ -100,13 +100,13 @@ def check_for_updates():
                     # Atomically replace (this works on Linux even if file is busy)
                     os.replace(temp_path, executable_path)
                     
-                    console.print(f"[success]Update successful! Please restart Mixtura.[/success]")
+                    console.print("[success]Update successful! Please restart Mixtura.[/success]")
                     sys.exit(0)
                     
                 except Exception as e:
                     console.print(f"[error]Update failed: {e}[/error]")
             else:
-                 console.print(f"Update skipped.")
+                 console.print("Update skipped.")
                  console.print()
             
     except Exception:

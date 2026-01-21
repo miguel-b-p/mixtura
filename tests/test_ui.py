@@ -4,9 +4,7 @@ Tests for Mixtura UI components.
 Tests the display functions, prompts, and console styling.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
-from io import StringIO
+from unittest.mock import patch
 
 from mixtura.core.package import Package
 
@@ -44,7 +42,7 @@ class TestConsole:
     
     def test_console_has_theme(self):
         """Test console has custom theme applied."""
-        from mixtura.ui import console, MIXTURA_THEME
+        from mixtura.ui import console
         
         # Console should be configured with our theme
         assert console is not None
@@ -296,7 +294,7 @@ class TestPrompts:
         
         result = confirm_action("Confirm?")
         
-        assert result == True
+        assert result is True
     
     @patch('mixtura.ui.prompts.Confirm.ask')
     def test_confirm_action_no(self, mock_ask):
@@ -307,4 +305,4 @@ class TestPrompts:
         
         result = confirm_action("Confirm?")
         
-        assert result == False
+        assert result is False

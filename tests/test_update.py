@@ -4,7 +4,7 @@ Tests for Mixtura update module.
 Tests the update checking functionality.
 """
 
-import pytest
+
 from unittest.mock import patch, MagicMock, mock_open
 import sys
 import json
@@ -19,7 +19,7 @@ class TestIsNuitkaCompiled:
         
         # In test environment, should not be compiled
         result = is_nuitka_compiled()
-        assert result == False
+        assert result is False
     
     @patch.dict('sys.modules', {'__compiled__': MagicMock()})
     def test_is_nuitka_compiled_with_compiled_module(self):
@@ -39,10 +39,11 @@ class TestIsNuitkaCompiled:
         try:
             sys.frozen = True
             result = is_nuitka_compiled()
-            assert result == True
+            assert result is True
         finally:
             if original_frozen is None:
-                delattr(sys, 'frozen') if hasattr(sys, 'frozen') else None
+                if hasattr(sys, 'frozen'):
+                    delattr(sys, 'frozen')
             else:
                 sys.frozen = original_frozen
 
@@ -180,6 +181,6 @@ class TestUpdateDownload:
         
         # Should have printed pip notice (not interactive prompt)
         if mock_console.print.called:
-            calls = str(mock_console.print.call_args_list)
+            _ = str(mock_console.print.call_args_list)
             # May contain pip or PyPI reference
             assert True  # Just verify it doesn't crash

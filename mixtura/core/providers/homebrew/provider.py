@@ -125,7 +125,8 @@ class HomebrewProvider(PackageManager):
              
             for line in lines:
                 line = line.strip()
-                if not line: continue
+                if not line:
+                    continue
                 if line.startswith("==> Formulae"):
                     current_type = "formula"
                     continue

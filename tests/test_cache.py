@@ -4,13 +4,10 @@ Tests for Mixtura cache module.
 Tests the SearchCache functionality for caching package search results.
 """
 
-import pytest
 import json
 import tempfile
-import shutil
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-from datetime import datetime, timedelta
+from unittest.mock import patch
 
 from mixtura.cache import SearchCache
 from mixtura.core.package import Package

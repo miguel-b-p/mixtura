@@ -4,7 +4,6 @@ Tests for Mixtura Orchestrator (Service Layer).
 Tests the business logic for package management operations.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
 from mixtura.core.orchestrator import Orchestrator

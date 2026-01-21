@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from functools import wraps
 from typing import List, Optional, Dict, Any, Tuple
 
-from mixtura.utils import run as utils_run, run_capture as utils_run_capture, CommandError
+from mixtura.utils import run as utils_run, run_capture as utils_run_capture
 
 
 def require_availability(func):

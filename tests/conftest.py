@@ -6,7 +6,6 @@ import pytest
 from typer.testing import CliRunner
 from unittest.mock import MagicMock, patch
 
-from mixtura.cli import app
 from mixtura.core.package import Package
 
 
