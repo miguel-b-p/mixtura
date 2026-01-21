@@ -8,7 +8,7 @@ import shutil
 import json
 from typing import List, Optional
 
-from mixtura.models.base import PackageManager
+from mixtura.models.base import PackageManager, require_availability
 from mixtura.models.package import Package
 from mixtura.cache import SearchCache
 
@@ -21,6 +21,7 @@ class NixProvider(PackageManager):
     def is_available(self) -> bool:
         return shutil.which("nix") is not None
         
+    @require_availability
     def install(self, packages: List[str]) -> None:
         """
         Install packages via Nix profile.
@@ -28,13 +29,11 @@ class NixProvider(PackageManager):
         Raises:
             CommandError: If installation fails
         """
-        if not self.is_available():
-            raise RuntimeError("Nix is not installed.")
-
         for pkg in packages:
             target = pkg if "#" in pkg else f"nixpkgs#{pkg}"
             self.run_command(["nix", "profile", "add", "--impure", target])
 
+    @require_availability
     def uninstall(self, packages: List[str]) -> None:
         """
         Remove packages from Nix profile.
@@ -42,12 +41,10 @@ class NixProvider(PackageManager):
         Raises:
             CommandError: If uninstall fails
         """
-        if not self.is_available():
-            raise RuntimeError("Nix is not installed.")
-            
         for pkg in packages:
             self.run_command(["nix", "profile", "remove", pkg], check_warnings=True)
 
+    @require_availability
     def upgrade(self, packages: Optional[List[str]] = None) -> None:
         """
         Upgrade Nix profile packages.
@@ -55,9 +52,6 @@ class NixProvider(PackageManager):
         Raises:
             CommandError: If upgrade fails
         """
-        if not self.is_available():
-            raise RuntimeError("Nix is not installed.")
-
         if not packages:
             # Upgrade all
             self.run_command(["nix", "profile", "upgrade", "--impure", "--all"])
@@ -293,6 +287,7 @@ class NixProvider(PackageManager):
         except Exception:
             return []
 
+    @require_availability
     def clean(self) -> None:
         """
         Run Nix garbage collection.
@@ -300,6 +295,4 @@ class NixProvider(PackageManager):
         Raises:
             CommandError: If cleanup fails
         """
-        if not self.is_available():
-            raise RuntimeError("Nix is not installed.")
         self.run_command(["nix-collect-garbage", "-d"])

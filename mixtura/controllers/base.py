@@ -7,11 +7,13 @@ Provides common functionality for all controllers.
 import argparse
 import fnmatch
 import re
-from typing import Dict, List, Any, Union
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, List, Any, Union, Tuple, Callable
 
 from mixtura.models.manager import ModuleManager
 from mixtura.models.base import PackageManager
 from mixtura.models.package import Package
+from mixtura.views import log_task, log_success, log_error, log_warn
 
 
 class BaseController:
@@ -92,6 +94,64 @@ class BaseController:
         
         # No exact match found - return all results
         return results
+
+    def run_parallel_tasks(
+        self,
+        tasks: List[Tuple],
+        worker_func: Callable[..., Tuple[str, bool, str]],
+        description: str = "Running tasks"
+    ) -> List[Tuple[str, bool, str]]:
+        """
+        Execute tasks in parallel using ThreadPoolExecutor.
+        
+        Args:
+            tasks: List of argument tuples to pass to worker_func
+            worker_func: Function that takes *task args and returns (name, success, message)
+            description: Description for logging (e.g. "Installing packages")
+            
+        Returns:
+            List of (name, success, message) tuples
+        """
+        if not tasks:
+            return []
+        
+        log_task(f"{description} ({len(tasks)} task(s) in parallel)...")
+        
+        results = []
+        with ThreadPoolExecutor(max_workers=len(tasks)) as executor:
+            futures = {executor.submit(worker_func, *task): task for task in tasks}
+            for future in as_completed(futures):
+                results.append(future.result())
+        
+        return results
+    
+    def report_parallel_results(
+        self, 
+        results: List[Tuple[str, bool, str]], 
+        success_message: str = "Operation complete.",
+        partial_message: str = "Operation completed with errors."
+    ) -> None:
+        """
+        Report results from run_parallel_tasks.
+        
+        Args:
+            results: List of (name, success, message) tuples from run_parallel_tasks
+            success_message: Message to show if all tasks succeeded
+            partial_message: Message to show if some tasks failed
+        """
+        print()
+        success_count = 0
+        for name, success, message in results:
+            if success:
+                log_success(message)
+                success_count += 1
+            else:
+                log_error(message)
+        
+        if success_count == len(results):
+            log_success(success_message)
+        else:
+            log_warn(f"{partial_message} ({len(results) - success_count} error(s))")
 
     def execute(self, args: argparse.Namespace) -> None:
         """

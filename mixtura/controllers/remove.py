@@ -34,9 +34,8 @@ class RemoveController(BaseController):
 
         for arg in args.packages:
             if '#' in arg:
-                # Explicit provider
-                provider, pkgs_str = arg.split('#', 1)
-                items = [p.strip() for p in pkgs_str.split(',') if p.strip()]
+                # Explicit provider - use centralized parsing
+                provider, items = self.manager.parse_single_arg(arg)
                 
                 if provider not in packages_to_remove:
                     packages_to_remove[provider] = []

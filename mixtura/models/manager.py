@@ -89,6 +89,33 @@ class ModuleManager:
     def get_discovery_errors(self) -> List[str]:
         """Get any errors that occurred during module discovery."""
         return self._discovery_errors.copy()
+    
+    def get_default_provider(self) -> str:
+        """Get the default provider name (usually 'nixpkgs')."""
+        if 'nixpkgs' in self.managers:
+            return 'nixpkgs'
+        if self.managers:
+            return next(iter(self.managers))
+        return 'nixpkgs'  # fallback
+    
+    def parse_single_arg(self, arg: str) -> tuple:
+        """
+        Parse a single argument with optional provider prefix.
+        
+        Args:
+            arg: String like 'package', 'provider#package', or 'provider#pkg1,pkg2'
+            
+        Returns:
+            Tuple of (provider_name, list_of_packages)
+            If no provider prefix, uses the default provider.
+        """
+        if '#' in arg:
+            provider, pkg_str = arg.split('#', 1)
+            items = [p.strip() for p in pkg_str.split(',') if p.strip()]
+            return (provider, items)
+        else:
+            items = [p.strip() for p in arg.split(',') if p.strip()]
+            return (self.get_default_provider(), items)
         
     def resolve_packages(self, args: List[str]) -> Dict[str, List[str]]:
         """
@@ -97,28 +124,13 @@ class ModuleManager:
         
         Assumes 'nixpkgs' is the default if no prefix is given.
         """
-        grouped = {}
+        grouped: Dict[str, List[str]] = {}
         
-        # Determine default provider - usually nixpkgs, or the first one available
-        default_manager_name = 'nixpkgs'
-        if default_manager_name not in self.managers and self.managers:
-             default_manager_name = next(iter(self.managers))
-
         for arg in args:
-            if '#' in arg:
-                provider, pkg = arg.split('#', 1)
-                # Handle comma separated values if any
-                items = [p.strip() for p in pkg.split(',') if p.strip()]
-                
-                if provider not in grouped:
-                    grouped[provider] = []
-                grouped[provider].extend(items)
-            else:
-                # Default provider
-                items = [p.strip() for p in arg.split(',') if p.strip()]
-                if default_manager_name not in grouped:
-                    grouped[default_manager_name] = []
-                grouped[default_manager_name].extend(items)
+            provider, items = self.parse_single_arg(arg)
+            if provider not in grouped:
+                grouped[provider] = []
+            grouped[provider].extend(items)
                 
         return grouped
 

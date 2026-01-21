@@ -5,12 +5,11 @@ Handles package installation commands.
 """
 
 import argparse
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Tuple
 
 from mixtura.controllers.base import BaseController
 from mixtura.views import (
-    log_task, log_info, log_warn, log_success, log_error,
+    log_task, log_info, log_warn,
     display_package_list, select_package, Style
 )
 from mixtura.utils import CommandError
@@ -34,15 +33,14 @@ class AddController(BaseController):
         
         for arg in args.packages:
             if '#' in arg:
-                # Explicit provider
-                provider, pkgs_str = arg.split('#', 1)
-                items = [p.strip() for p in pkgs_str.split(',') if p.strip()]
+                # Explicit provider - use centralized parsing
+                provider, items = self.manager.parse_single_arg(arg)
                 
                 if provider not in packages_to_install:
                     packages_to_install[provider] = []
                 packages_to_install[provider].extend(items)
             else:
-                # Ambiguous package - Search Mode
+                # Ambiguous package - Search Mode (split by comma)
                 items = [p.strip() for p in arg.split(',') if p.strip()]
                 
                 for item in items:
@@ -110,43 +108,26 @@ class AddController(BaseController):
                 return (provider_name, False, f"Provider '{mgr.name}' is not available.")
             try:
                 mgr.install(packages)
-                return (provider_name, True, f"Installed {len(packages)} packages via {mgr.name}")
+                return (provider_name, True, f"Installed {len(packages)} package(s) via {mgr.name}")
             except CommandError as e:
                 return (provider_name, False, f"Failed to install via {mgr.name}: {e}")
             except Exception as e:
                 return (provider_name, False, f"Failed to install via {mgr.name}: {e}")
         
         # Log what we're about to do
-        provider_names = list(packages_to_install.keys())
-        log_task(f"Installing packages from {len(provider_names)} provider(s) in parallel...")
         for prov, pkgs in packages_to_install.items():
             log_info(f"{prov}: {', '.join(pkgs)}")
         print()
         
-        # Execute in parallel
-        results = []
-        with ThreadPoolExecutor(max_workers=len(packages_to_install)) as executor:
-            futures = {
-                executor.submit(_install_provider, prov, pkgs): prov 
-                for prov, pkgs in packages_to_install.items()
-            }
-            for future in as_completed(futures):
-                results.append(future.result())
+        # Build task list and execute
+        tasks = [(prov, pkgs) for prov, pkgs in packages_to_install.items()]
+        results = self.run_parallel_tasks(tasks, _install_provider, "Installing packages")
         
-        # Report results
-        print()
-        success_count = 0
-        for provider_name, success, message in results:
-            if success:
-                log_success(message)
-                success_count += 1
-            else:
-                log_error(message)
-        
-        if success_count == len(packages_to_install):
-            log_success("Installation process finished.")
-        else:
-            log_warn(f"Installation completed with {len(packages_to_install) - success_count} error(s).")
+        self.report_parallel_results(
+            results,
+            success_message="Installation process finished.",
+            partial_message="Installation completed with errors."
+        )
 
 
 # Module-level function for argparse compatibility

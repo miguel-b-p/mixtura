@@ -7,7 +7,7 @@ Provides integration with Homebrew package manager (macOS/Linux).
 import shutil
 from typing import List, Optional
 
-from mixtura.models.base import PackageManager
+from mixtura.models.base import PackageManager, require_availability
 from mixtura.models.package import Package
 from mixtura.cache import SearchCache
 
@@ -20,6 +20,7 @@ class HomebrewProvider(PackageManager):
     def is_available(self) -> bool:
         return shutil.which("brew") is not None
 
+    @require_availability
     def install(self, packages: List[str]) -> None:
         """
         Install packages via Homebrew.
@@ -27,11 +28,9 @@ class HomebrewProvider(PackageManager):
         Raises:
             CommandError: If installation fails
         """
-        if not self.is_available():
-            raise RuntimeError("Homebrew is not installed.")
-
         self.run_command(["brew", "install"] + packages)
 
+    @require_availability
     def uninstall(self, packages: List[str]) -> None:
         """
         Remove Homebrew packages.
@@ -39,11 +38,9 @@ class HomebrewProvider(PackageManager):
         Raises:
             CommandError: If uninstall fails
         """
-        if not self.is_available():
-            raise RuntimeError("Homebrew is not installed.")
-        
         self.run_command(["brew", "uninstall"] + packages)
 
+    @require_availability
     def upgrade(self, packages: Optional[List[str]] = None) -> None:
         """
         Upgrade Homebrew packages.
@@ -51,9 +48,6 @@ class HomebrewProvider(PackageManager):
         Raises:
             CommandError: If upgrade fails
         """
-        if not self.is_available():
-            raise RuntimeError("Homebrew is not installed.")
-
         if not packages:
             self.run_command(["brew", "upgrade"])
         else:
@@ -163,6 +157,7 @@ class HomebrewProvider(PackageManager):
         except Exception:
             return []
 
+    @require_availability
     def clean(self) -> None:
         """
         Run Homebrew cleanup.
@@ -170,6 +165,4 @@ class HomebrewProvider(PackageManager):
         Raises:
             CommandError: If cleanup fails
         """
-        if not self.is_available():
-            raise RuntimeError("Homebrew is not installed.")
         self.run_command(["brew", "cleanup"])

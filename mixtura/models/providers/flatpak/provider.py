@@ -7,7 +7,7 @@ Provides integration with Flatpak package manager.
 import shutil
 from typing import List, Optional
 
-from mixtura.models.base import PackageManager
+from mixtura.models.base import PackageManager, require_availability
 from mixtura.models.package import Package
 from mixtura.cache import SearchCache
 
@@ -20,6 +20,7 @@ class FlatpakProvider(PackageManager):
     def is_available(self) -> bool:
         return shutil.which("flatpak") is not None
 
+    @require_availability
     def install(self, packages: List[str]) -> None:
         """
         Install packages via Flatpak.
@@ -27,11 +28,9 @@ class FlatpakProvider(PackageManager):
         Raises:
             CommandError: If installation fails
         """
-        if not self.is_available():
-            raise RuntimeError("Flatpak is not installed.")
-        
         self.run_command(["flatpak", "install", "-y"] + packages)
 
+    @require_availability
     def uninstall(self, packages: List[str]) -> None:
         """
         Remove Flatpak packages.
@@ -39,12 +38,10 @@ class FlatpakProvider(PackageManager):
         Raises:
             CommandError: If uninstall fails
         """
-        if not self.is_available():
-            raise RuntimeError("Flatpak is not installed.")
-
         for pkg in packages:
             self.run_command(["flatpak", "uninstall", pkg])
 
+    @require_availability
     def upgrade(self, packages: Optional[List[str]] = None) -> None:
         """
         Upgrade Flatpak packages.
@@ -52,9 +49,6 @@ class FlatpakProvider(PackageManager):
         Raises:
             CommandError: If upgrade fails
         """
-        if not self.is_available():
-            raise RuntimeError("Flatpak is not installed.")
-
         if not packages:
             self.run_command(["flatpak", "update", "-y"])
         else:
@@ -141,6 +135,7 @@ class FlatpakProvider(PackageManager):
         except Exception:
             return []
 
+    @require_availability
     def clean(self) -> None:
         """
         Remove unused Flatpak packages and data.
@@ -148,6 +143,4 @@ class FlatpakProvider(PackageManager):
         Raises:
             CommandError: If cleanup fails
         """
-        if not self.is_available():
-            raise RuntimeError("Flatpak is not installed.")
         self.run_command(["flatpak", "uninstall", "--unused", "-y"])

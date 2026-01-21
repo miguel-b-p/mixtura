@@ -6,9 +6,29 @@ This is the Model layer - no UI/print logic should be here.
 """
 
 from abc import ABC, abstractmethod
+from functools import wraps
 from typing import List, Optional, Dict, Any, Tuple
 
 from mixtura.utils import run as utils_run, run_capture as utils_run_capture, CommandError
+
+
+def require_availability(func):
+    """
+    Decorator that ensures the package manager is available before executing.
+    
+    Use this on methods that should fail if the package manager is not installed.
+    Methods like `list_packages` and `search` that return empty lists when unavailable
+    should NOT use this decorator.
+    
+    Raises:
+        RuntimeError: If the package manager is not available
+    """
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if not self.is_available():
+            raise RuntimeError(f"{self.name} is not installed.")
+        return func(self, *args, **kwargs)
+    return wrapper
 
 
 class PackageManager(ABC):
