@@ -5,12 +5,10 @@ Provides integration with Homebrew package manager (macOS/Linux).
 """
 
 import shutil
-import subprocess
 from typing import List, Optional
 
 from mixtura.models.base import PackageManager
 from mixtura.models.package import Package
-from mixtura.utils import run
 from mixtura.cache import SearchCache
 
 
@@ -32,7 +30,7 @@ class HomebrewProvider(PackageManager):
         if not self.is_available():
             raise RuntimeError("Homebrew is not installed.")
 
-        run(["brew", "install"] + packages)
+        self.run_command(["brew", "install"] + packages)
 
     def uninstall(self, packages: List[str]) -> None:
         """
@@ -44,7 +42,7 @@ class HomebrewProvider(PackageManager):
         if not self.is_available():
             raise RuntimeError("Homebrew is not installed.")
         
-        run(["brew", "uninstall"] + packages)
+        self.run_command(["brew", "uninstall"] + packages)
 
     def upgrade(self, packages: Optional[List[str]] = None) -> None:
         """
@@ -57,9 +55,9 @@ class HomebrewProvider(PackageManager):
             raise RuntimeError("Homebrew is not installed.")
 
         if not packages:
-            run(["brew", "upgrade"])
+            self.run_command(["brew", "upgrade"])
         else:
-            run(["brew", "upgrade"] + packages)
+            self.run_command(["brew", "upgrade"] + packages)
 
     def list_packages(self) -> List[Package]:
         """Return list of installed Homebrew packages (installed on request only)."""
@@ -67,28 +65,26 @@ class HomebrewProvider(PackageManager):
             return []
 
         try:
-            req_result = subprocess.run(
-                ["brew", "list", "--installed-on-request"],
-                capture_output=True,
-                text=True
+            # Get packages installed on request
+            rc1, req_stdout, _ = self.run_capture(
+                ["brew", "list", "--installed-on-request"]
             )
-            if req_result.returncode != 0:
+            if rc1 != 0:
                 return []
             
-            requested_pkgs = set(req_result.stdout.strip().split('\n'))
+            requested_pkgs = set(req_stdout.strip().split('\n'))
             requested_pkgs = {p.strip() for p in requested_pkgs if p.strip()}
             
-            ver_result = subprocess.run(
-                ["brew", "list", "--versions"],
-                capture_output=True,
-                text=True
+            # Get versions
+            rc2, ver_stdout, _ = self.run_capture(
+                ["brew", "list", "--versions"]
             )
             
-            if ver_result.returncode != 0:
+            if rc2 != 0:
                 return []
 
             packages: List[Package] = []
-            lines = ver_result.stdout.strip().split('\n')
+            lines = ver_stdout.strip().split('\n')
             
             for line in lines:
                 parts = line.strip().split()
@@ -121,47 +117,48 @@ class HomebrewProvider(PackageManager):
             return cached
         
         try:
-             cmd = ["brew", "search", "--desc", query]
-             result = subprocess.run(cmd, capture_output=True, text=True)
+            returncode, stdout, stderr = self.run_capture(
+                ["brew", "search", "--desc", query]
+            )
              
-             packages: List[Package] = []
-             if result.returncode != 0 and not result.stdout:
-                 return []
+            packages: List[Package] = []
+            if returncode != 0 and not stdout:
+                return []
              
-             lines = result.stdout.strip().split('\n')
+            lines = stdout.strip().split('\n')
              
-             current_type = "formula" 
+            current_type = "formula" 
              
-             for line in lines:
-                 line = line.strip()
-                 if not line: continue
-                 if line.startswith("==> Formulae"):
-                     current_type = "formula"
-                     continue
-                 if line.startswith("==> Casks"):
-                     current_type = "cask"
-                     continue
+            for line in lines:
+                line = line.strip()
+                if not line: continue
+                if line.startswith("==> Formulae"):
+                    current_type = "formula"
+                    continue
+                if line.startswith("==> Casks"):
+                    current_type = "cask"
+                    continue
                  
-                 if ": " in line:
-                     parts = line.split(": ", 1)
-                     name = parts[0]
-                     desc = parts[1]
-                 else:
-                     name = line
-                     desc = "No description"
+                if ": " in line:
+                    parts = line.split(": ", 1)
+                    name = parts[0]
+                    desc = parts[1]
+                else:
+                    name = line
+                    desc = "No description"
                  
-                 packages.append(Package(
-                     name=name,
-                     provider=self.name,
-                     id=name,
-                     version="unknown",
-                     description=desc,
-                     extra={"type": current_type}
-                 ))
+                packages.append(Package(
+                    name=name,
+                    provider=self.name,
+                    id=name,
+                    version="unknown",
+                    description=desc,
+                    extra={"type": current_type}
+                ))
              
-             # Save to cache
-             cache.set(query, packages)
-             return packages
+            # Save to cache
+            cache.set(query, packages)
+            return packages
 
         except Exception:
             return []
@@ -175,4 +172,4 @@ class HomebrewProvider(PackageManager):
         """
         if not self.is_available():
             raise RuntimeError("Homebrew is not installed.")
-        run(["brew", "cleanup"])
+        self.run_command(["brew", "cleanup"])

@@ -6,7 +6,9 @@ This is the Model layer - no UI/print logic should be here.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
+
+from mixtura.utils import run as utils_run, run_capture as utils_run_capture, CommandError
 
 
 class PackageManager(ABC):
@@ -14,8 +16,87 @@ class PackageManager(ABC):
     Abstract base class for all package manager modules.
     
     All methods should return data or raise exceptions.
-    No print() or logging calls should be made here - that's the View's job.
+    Provides helper methods for command execution with consistent behavior.
     """
+    
+    # Default settings for command execution
+    _show_commands: bool = True  # Whether to show command output visually
+    
+    def run_command(
+        self,
+        cmd: List[str],
+        silent: bool = False,
+        check_warnings: bool = False,
+        show_output: bool = True,
+        cwd: Optional[str] = None,
+        env: Optional[dict] = None,
+        timeout: Optional[int] = None
+    ) -> None:
+        """
+        Execute a command with visual feedback.
+        
+        This is a convenience wrapper around utils.run() that respects
+        the provider's display settings.
+        
+        Args:
+            cmd: Command and arguments as a list
+            silent: If True, don't print the command being run
+            check_warnings: If True, capture output and check for warning patterns
+            show_output: If True, show stdout/stderr
+            cwd: Working directory for the command
+            env: Environment variables
+            timeout: Timeout in seconds
+        
+        Raises:
+            CommandError: If the command fails
+        """
+        # Use provider's display setting, but can be overridden by silent
+        effective_silent = silent if silent else not self._show_commands
+        
+        utils_run(
+            cmd=cmd,
+            silent=effective_silent,
+            check_warnings=check_warnings,
+            show_output=show_output,
+            cwd=cwd,
+            env=env,
+            timeout=timeout
+        )
+    
+    def run_capture(
+        self,
+        cmd: List[str],
+        cwd: Optional[str] = None,
+        env: Optional[dict] = None,
+        timeout: Optional[int] = None,
+        check: bool = False
+    ) -> Tuple[int, str, str]:
+        """
+        Execute a command and capture its output.
+        
+        This is for commands where you need to parse the output
+        (e.g., listing packages, searching).
+        
+        Args:
+            cmd: Command and arguments as a list
+            cwd: Working directory for the command
+            env: Environment variables
+            timeout: Timeout in seconds
+            check: If True, raise CommandError on non-zero exit code
+        
+        Returns:
+            Tuple of (return_code, stdout, stderr)
+        
+        Raises:
+            CommandError: If check=True and command fails
+        """
+        return utils_run_capture(
+            cmd=cmd,
+            cwd=cwd,
+            env=env,
+            timeout=timeout,
+            check=check
+        )
     
     @property
     @abstractmethod

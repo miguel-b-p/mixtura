@@ -5,13 +5,11 @@ Provides integration with Nix package manager.
 """
 
 import shutil
-import subprocess
 import json
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 
 from mixtura.models.base import PackageManager
 from mixtura.models.package import Package
-from mixtura.utils import run
 from mixtura.cache import SearchCache
 
 
@@ -35,7 +33,7 @@ class NixProvider(PackageManager):
 
         for pkg in packages:
             target = pkg if "#" in pkg else f"nixpkgs#{pkg}"
-            run(["nix", "profile", "add", "--impure", target])
+            self.run_command(["nix", "profile", "add", "--impure", target])
 
     def uninstall(self, packages: List[str]) -> None:
         """
@@ -48,7 +46,7 @@ class NixProvider(PackageManager):
             raise RuntimeError("Nix is not installed.")
             
         for pkg in packages:
-            run(["nix", "profile", "remove", pkg], check_warnings=True)
+            self.run_command(["nix", "profile", "remove", pkg], check_warnings=True)
 
     def upgrade(self, packages: Optional[List[str]] = None) -> None:
         """
@@ -62,11 +60,11 @@ class NixProvider(PackageManager):
 
         if not packages:
             # Upgrade all
-            run(["nix", "profile", "upgrade", "--impure", "--all"])
+            self.run_command(["nix", "profile", "upgrade", "--impure", "--all"])
         else:
             # Upgrade specific
             for pkg in packages:
-                run(["nix", "profile", "upgrade", "--impure", pkg], check_warnings=True)
+                self.run_command(["nix", "profile", "upgrade", "--impure", pkg], check_warnings=True)
 
     def list_packages(self) -> List[Package]:
         """Return list of installed Nix packages."""
@@ -74,15 +72,13 @@ class NixProvider(PackageManager):
             return []
             
         try:
-            result = subprocess.run(
-                ["nix", "profile", "list", "--json"],
-                capture_output=True,
-                text=True
+            returncode, stdout, stderr = self.run_capture(
+                ["nix", "profile", "list", "--json"]
             )
-            if result.returncode != 0:
+            if returncode != 0:
                 return []
             
-            data = json.loads(result.stdout)
+            data = json.loads(stdout)
             packages = []
             elements = data.get("elements", {})
             
@@ -90,16 +86,14 @@ class NixProvider(PackageManager):
                 if not store_path or not pkg_name:
                     return "unknown"
                 try:
-                    res = subprocess.run(
-                        ["nix-store", "--query", "--references", store_path],
-                        capture_output=True,
-                        text=True
+                    rc, out, _ = self.run_capture(
+                        ["nix-store", "--query", "--references", store_path]
                     )
-                    if res.returncode != 0:
+                    if rc != 0:
                         return "unknown"
                     
                     candidates = []
-                    for line in res.stdout.splitlines():
+                    for line in out.splitlines():
                         if pkg_name in line:
                             candidates.append(line.strip())
                     
@@ -189,13 +183,14 @@ class NixProvider(PackageManager):
             return cached
         
         try:
-            cmd = ["nix", "search", "nixpkgs", query, "--json"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            returncode, stdout, stderr = self.run_capture(
+                ["nix", "search", "nixpkgs", query, "--json"]
+            )
             
-            if result.returncode != 0:
+            if returncode != 0:
                 return []
             
-            data = json.loads(result.stdout)
+            data = json.loads(stdout)
             packages: List[Package] = []
             
             # Structure: { "legacyPackages.x86_64-linux.pkgName": { "description": "...", "version": "..." } }
@@ -228,4 +223,4 @@ class NixProvider(PackageManager):
         """
         if not self.is_available():
             raise RuntimeError("Nix is not installed.")
-        run(["nix-collect-garbage", "-d"])
+        self.run_command(["nix-collect-garbage", "-d"])

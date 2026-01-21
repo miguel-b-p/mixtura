@@ -5,12 +5,10 @@ Provides integration with Flatpak package manager.
 """
 
 import shutil
-import subprocess
 from typing import List, Optional
 
 from mixtura.models.base import PackageManager
 from mixtura.models.package import Package
-from mixtura.utils import run
 from mixtura.cache import SearchCache
 
 
@@ -32,7 +30,7 @@ class FlatpakProvider(PackageManager):
         if not self.is_available():
             raise RuntimeError("Flatpak is not installed.")
         
-        run(["flatpak", "install", "-y"] + packages)
+        self.run_command(["flatpak", "install", "-y"] + packages)
 
     def uninstall(self, packages: List[str]) -> None:
         """
@@ -45,7 +43,7 @@ class FlatpakProvider(PackageManager):
             raise RuntimeError("Flatpak is not installed.")
 
         for pkg in packages:
-             run(["flatpak", "uninstall", pkg])
+            self.run_command(["flatpak", "uninstall", pkg])
 
     def upgrade(self, packages: Optional[List[str]] = None) -> None:
         """
@@ -58,9 +56,9 @@ class FlatpakProvider(PackageManager):
             raise RuntimeError("Flatpak is not installed.")
 
         if not packages:
-            run(["flatpak", "update", "-y"])
+            self.run_command(["flatpak", "update", "-y"])
         else:
-            run(["flatpak", "update", "-y"] + packages)
+            self.run_command(["flatpak", "update", "-y"] + packages)
 
     def list_packages(self) -> List[Package]:
         """Return list of installed Flatpak apps."""
@@ -68,14 +66,13 @@ class FlatpakProvider(PackageManager):
             return []
             
         try:
-            result = subprocess.run(
-                ["flatpak", "list", "--app", "--columns=name,application,description,version"],
-                capture_output=True,
-                text=True
+            returncode, stdout, stderr = self.run_capture(
+                ["flatpak", "list", "--app", "--columns=name,application,description,version"]
             )
+            
             packages: List[Package] = []
-            if result.returncode == 0:
-                lines = result.stdout.strip().split('\n')
+            if returncode == 0:
+                lines = stdout.strip().split('\n')
                 for line in lines:
                     parts = line.split('\t')
                     if len(parts) >= 2:
@@ -102,16 +99,14 @@ class FlatpakProvider(PackageManager):
             return cached
         
         try:
-            result = subprocess.run(
-                ["flatpak", "search", query, "--columns=name,application,description,version"], 
-                capture_output=True, 
-                text=True
+            returncode, stdout, stderr = self.run_capture(
+                ["flatpak", "search", query, "--columns=name,application,description,version"]
             )
             
-            if result.returncode != 0:
+            if returncode != 0:
                 return []
 
-            lines = result.stdout.strip().split('\n')
+            lines = stdout.strip().split('\n')
             packages: List[Package] = []
             
             # Skip header if present
@@ -155,4 +150,4 @@ class FlatpakProvider(PackageManager):
         """
         if not self.is_available():
             raise RuntimeError("Flatpak is not installed.")
-        run(["flatpak", "uninstall", "--unused", "-y"])
+        self.run_command(["flatpak", "uninstall", "--unused", "-y"])
