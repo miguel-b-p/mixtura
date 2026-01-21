@@ -5,6 +5,7 @@ A unified package manager CLI that supports Nix, Flatpak, and Homebrew.
 """
 
 import argparse
+import difflib
 import sys
 import pickle
 
@@ -32,6 +33,81 @@ class ColoredHelpFormatter(argparse.RawDescriptionHelpFormatter):
             prefix = 'usage: '
         prefix = f"{Style.BOLD}{Style.SUCCESS}{prefix}{Style.RESET}"
         return super()._format_usage(usage, actions, groups, prefix)
+
+
+class SuggestingArgumentParser(argparse.ArgumentParser):
+    """ArgumentParser that suggests similar commands and arguments on typos."""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._valid_commands = []
+    
+    def set_valid_commands(self, commands: list):
+        """Set the list of valid subcommands for suggestions."""
+        self._valid_commands = commands
+    
+    def _get_all_options(self) -> list:
+        """Get all valid option strings from this parser and all subparsers."""
+        options = []
+        # Get options from main parser
+        for action in self._actions:
+            options.extend(action.option_strings)
+            # Check if this action is a subparsers action
+            if isinstance(action, argparse._SubParsersAction):
+                # Get options from each subparser
+                for subparser in action.choices.values():
+                    for sub_action in subparser._actions:
+                        options.extend(sub_action.option_strings)
+        return list(set(options))  # Remove duplicates
+    
+    def error(self, message):
+        """Override error to add 'Did you mean?' suggestions."""
+        import re
+        
+        # Check if it's an unrecognized arguments error (for options like --hep)
+        unrecognized_match = re.search(r"unrecognized arguments?: (.+)", message)
+        if unrecognized_match:
+            invalid_arg = unrecognized_match.group(1).split()[0]  # Get first unrecognized arg
+            if invalid_arg.startswith('-'):
+                valid_options = self._get_all_options()
+                suggestions = difflib.get_close_matches(
+                    invalid_arg, 
+                    valid_options, 
+                    n=1, 
+                    cutoff=0.5
+                )
+                if suggestions:
+                    self.print_usage(sys.stderr)
+                    print(
+                        f"{Style.ERROR}error:{Style.RESET} Unrecognized argument '{Style.BOLD}{invalid_arg}{Style.RESET}'. "
+                        f"Did you mean '{Style.SUCCESS}{suggestions[0]}{Style.RESET}'?",
+                        file=sys.stderr
+                    )
+                    sys.exit(2)
+        
+        # Check if it's an invalid choice error for the command
+        if "invalid choice:" in message and self._valid_commands:
+            match = re.search(r"invalid choice: ['\"]?([^'\"\s]+)['\"]?", message)
+            if match:
+                invalid_cmd = match.group(1)
+                # Find similar commands using difflib
+                suggestions = difflib.get_close_matches(
+                    invalid_cmd, 
+                    self._valid_commands, 
+                    n=1, 
+                    cutoff=0.5
+                )
+                if suggestions:
+                    self.print_usage(sys.stderr)
+                    print(
+                        f"{Style.ERROR}error:{Style.RESET} Command '{Style.BOLD}{invalid_cmd}{Style.RESET}' not found. "
+                        f"Did you mean '{Style.SUCCESS}{suggestions[0]}{Style.RESET}'?",
+                        file=sys.stderr
+                    )
+                    sys.exit(2)
+        
+        # Fall back to default error handling
+        super().error(message)
 
 
 def main() -> None:
@@ -69,7 +145,7 @@ def main() -> None:
   {Style.DIM}$ mixtura upgrade{Style.RESET}
 """
 
-    parser = argparse.ArgumentParser(
+    parser = SuggestingArgumentParser(
         prog="mixtura",
         description=f"""
 {Style.ASCII}
@@ -194,6 +270,10 @@ def main() -> None:
         help="Specific modules to clean (e.g. 'nixpkgs', 'flatpak'). Empty = clean all."
     )
     p_clean.set_defaults(func=cmd_clean)
+
+    # Dynamically set valid commands for "Did you mean?" suggestions
+    # This includes all registered subcommands automatically
+    parser.set_valid_commands(list(sub.choices.keys()))
 
     try:
         args = parser.parse_args()
