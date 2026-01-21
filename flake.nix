@@ -30,7 +30,7 @@
           ];
 
           propagatedBuildInputs = [
-            # Add python dependencies here if any, e.g. pkgs.python3Packages.requests
+            pkgs.python3Packages.typer
           ];
 
           meta = with pkgs.lib; {

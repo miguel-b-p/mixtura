@@ -22,6 +22,7 @@ app = typer.Typer(
     rich_markup_mode="rich",
     no_args_is_help=True,
     add_completion=True,
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
 
 # Create orchestrator instance

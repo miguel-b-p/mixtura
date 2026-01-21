@@ -110,6 +110,7 @@ def check_for_updates():
                  console.print()
             
     except Exception:
-        # Fail silently on network errors or other issues to not disrupt usage
+        # Intentionally silent: update check failures should not disrupt normal CLI usage.
+        # Network errors, missing VERSION file, or API changes are non-critical.
         pass
 
