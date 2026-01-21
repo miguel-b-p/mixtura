@@ -49,6 +49,10 @@ class ModuleManager:
 
     def _load_module(self, module_name: str) -> None:
         """Load a provider module and register it."""
+        if not module_name.startswith("mixtura.models.providers."):
+            raise ValueError(f"Invalid module name: {module_name}. Only 'mixtura.models.providers.*' modules are allowed.")
+
+
         try:
             # Try to import the module by name
             module = importlib.import_module(module_name)
