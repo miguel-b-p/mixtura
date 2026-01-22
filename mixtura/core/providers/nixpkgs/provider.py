@@ -6,11 +6,16 @@ Provides integration with Nix package manager.
 
 import shutil
 import json
+import sys
+
 from typing import List, Optional
 
 from mixtura.core.providers.base import PackageManager, require_availability
 from mixtura.core.package import Package
 from mixtura.cache import SearchCache
+from mixtura.ui import log_warn
+from mixtura.ui.prompts import confirm_action
+from mixtura.utils import CommandError
 
 
 class NixProvider(PackageManager):
@@ -74,8 +79,7 @@ class NixProvider(PackageManager):
         If the command fails with "cannot write modified lock file" error,
         ask the user if they want to retry with --no-write-lock-file flag.
         """
-        from mixtura.ui import log_warn
-        from mixtura.ui.prompts import confirm_action
+
         
         # First, try running with output capture to detect lock file error
         returncode, stdout, stderr = self.run_capture(cmd)
@@ -103,9 +107,8 @@ class NixProvider(PackageManager):
                 self.run_command(retry_cmd, check_warnings=check_warnings)
             else:
                 # User declined, raise the original error
-                from mixtura.utils import CommandError
                 raise CommandError(
-                    f"Upgrade cancelled by user",
+                    "Upgrade cancelled by user",
                     returncode=returncode,
                     cmd=" ".join(cmd)
                 )
@@ -114,10 +117,7 @@ class NixProvider(PackageManager):
             if stdout:
                 print(stdout, end='')
             if stderr:
-                import sys
                 print(stderr, file=sys.stderr, end='')
-            
-            from mixtura.utils import CommandError
             raise CommandError(
                 f"Command failed with exit code {returncode}",
                 returncode=returncode,

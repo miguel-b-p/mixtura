@@ -5,6 +5,7 @@ A unified package manager CLI that supports Nix, Flatpak, and Homebrew.
 Built with Typer for a modern CLI experience.
 """
 
+from pathlib import Path
 from typing import List, Optional
 
 import typer
@@ -32,7 +33,6 @@ orchestrator = Orchestrator()
 def version_callback(value: bool):
     """Show version and exit."""
     if value:
-        from pathlib import Path
         version_path = Path(__file__).parent / "VERSION"
         version = version_path.read_text().strip() if version_path.exists() else "unknown"
         console.print(f"[main]Mixtura[/main] version [bold]{version}[/bold]")

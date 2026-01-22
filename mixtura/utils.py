@@ -5,10 +5,13 @@ Contains subprocess execution helpers and error types.
 Note: Style and log_* functions have been moved to the views layer.
 """
 
+import os
 import sys
 import subprocess
 import shlex
 from typing import List, Optional, Tuple
+
+from mixtura.ui import console, log_error, log_info, log_warn
 
 
 class CommandError(Exception):
@@ -62,9 +65,7 @@ def run(
         - shell=False is always used (safer)
         - Never interpolate user input directly into commands
     """
-    # Import here to avoid circular imports
-    from mixtura.ui import console, log_error, log_info, log_warn
-    
+
     # Security: Ensure cmd is a list, not a string
     if isinstance(cmd, str):
         raise ValueError(
@@ -83,7 +84,6 @@ def run(
     # Prepare environment
     run_env = None
     if env:
-        import os
         run_env = os.environ.copy()
         run_env.update(env)
 
@@ -187,7 +187,6 @@ def run_capture(
     # Prepare environment
     run_env = None
     if env:
-        import os
         run_env = os.environ.copy()
         run_env.update(env)
     
