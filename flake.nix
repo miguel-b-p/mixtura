@@ -20,7 +20,7 @@
       {
         packages.default = pkgs.python3Packages.buildPythonApplication {
           pname = "mixtura";
-          version = "1.21";
+          version = "1.22";
           pyproject = true;
 
           src = ./.;
