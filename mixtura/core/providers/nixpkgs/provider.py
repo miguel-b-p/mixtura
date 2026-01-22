@@ -15,7 +15,7 @@ from mixtura.core.package import Package
 from mixtura.cache import SearchCache
 from mixtura.ui import log_warn
 from mixtura.ui.prompts import confirm_action
-from mixtura.utils import CommandError
+from mixtura.utils import run, run_capture, CommandError
 
 
 class NixProvider(PackageManager):
@@ -36,7 +36,7 @@ class NixProvider(PackageManager):
         """
         for pkg in packages:
             target = pkg if "#" in pkg else f"nixpkgs#{pkg}"
-            self.run_command(["nix", "profile", "add", "--impure", target])
+            run(["nix", "profile", "add", "--impure", target])
 
     @require_availability
     def uninstall(self, packages: List[str]) -> None:
@@ -47,7 +47,7 @@ class NixProvider(PackageManager):
             CommandError: If uninstall fails
         """
         for pkg in packages:
-            self.run_command(["nix", "profile", "remove", pkg], check_warnings=True)
+            run(["nix", "profile", "remove", pkg], check_warnings=True)
 
     @require_availability
     def upgrade(self, packages: Optional[List[str]] = None) -> None:
@@ -82,7 +82,7 @@ class NixProvider(PackageManager):
 
         
         # First, try running with output capture to detect lock file error
-        returncode, stdout, stderr = self.run_capture(cmd)
+        returncode, stdout, stderr = run_capture(cmd)
         
         if returncode == 0:
             # Success on first try
@@ -104,7 +104,7 @@ class NixProvider(PackageManager):
                 upgrade_idx = retry_cmd.index("upgrade")
                 retry_cmd.insert(upgrade_idx + 1, "--no-write-lock-file")
                 
-                self.run_command(retry_cmd, check_warnings=check_warnings)
+                run(retry_cmd, check_warnings=check_warnings)
             else:
                 # User declined, raise the original error
                 raise CommandError(
@@ -130,7 +130,7 @@ class NixProvider(PackageManager):
             return []
             
         try:
-            returncode, stdout, stderr = self.run_capture(
+            returncode, stdout, stderr = run_capture(
                 ["nix", "profile", "list", "--json"]
             )
             if returncode != 0:
@@ -196,7 +196,7 @@ class NixProvider(PackageManager):
                     Version string or "unknown" if not found
                 """
                 try:
-                    returncode, stdout, stderr = self.run_capture(
+                    returncode, stdout, stderr = run_capture(
                         ["nix-store", "--query", "--references", store_path]
                     )
                     if returncode != 0:
@@ -320,7 +320,7 @@ class NixProvider(PackageManager):
             return cached
         
         try:
-            returncode, stdout, stderr = self.run_capture(
+            returncode, stdout, stderr = run_capture(
                 ["nix", "search", "nixpkgs", query, "--json"]
             )
             
@@ -359,4 +359,4 @@ class NixProvider(PackageManager):
         Raises:
             CommandError: If cleanup fails
         """
-        self.run_command(["nix-collect-garbage", "-d"])
+        run(["nix-collect-garbage", "-d"])

@@ -10,6 +10,7 @@ from typing import List, Optional
 from mixtura.core.providers.base import PackageManager, require_availability
 from mixtura.core.package import Package
 from mixtura.cache import SearchCache
+from mixtura.utils import run, run_capture
 
 
 class FlatpakProvider(PackageManager):
@@ -28,7 +29,7 @@ class FlatpakProvider(PackageManager):
         Raises:
             CommandError: If installation fails
         """
-        self.run_command(["flatpak", "install", "--system", "-y"] + packages)
+        run(["flatpak", "install", "--system", "-y"] + packages)
 
     @require_availability
     def uninstall(self, packages: List[str]) -> None:
@@ -39,7 +40,7 @@ class FlatpakProvider(PackageManager):
             CommandError: If uninstall fails
         """
         for pkg in packages:
-            self.run_command(["flatpak", "uninstall", pkg])
+            run(["flatpak", "uninstall", pkg])
 
     @require_availability
     def upgrade(self, packages: Optional[List[str]] = None) -> None:
@@ -50,9 +51,9 @@ class FlatpakProvider(PackageManager):
             CommandError: If upgrade fails
         """
         if not packages:
-            self.run_command(["flatpak", "update", "--system", "-y"])
+            run(["flatpak", "update", "--system", "-y"])
         else:
-            self.run_command(["flatpak", "update", "--system", "-y"] + packages)
+            run(["flatpak", "update", "--system", "-y"] + packages)
 
     def list_packages(self) -> List[Package]:
         """Return list of installed Flatpak apps."""
@@ -60,7 +61,7 @@ class FlatpakProvider(PackageManager):
             return []
             
         try:
-            returncode, stdout, stderr = self.run_capture(
+            returncode, stdout, stderr = run_capture(
                 ["flatpak", "list", "--app", "--columns=name,application,description,version"]
             )
             
@@ -93,7 +94,7 @@ class FlatpakProvider(PackageManager):
             return cached
         
         try:
-            returncode, stdout, stderr = self.run_capture(
+            returncode, stdout, stderr = run_capture(
                 ["flatpak", "search", query, "--columns=name,application,description,version"]
             )
             
@@ -144,4 +145,4 @@ class FlatpakProvider(PackageManager):
         Raises:
             CommandError: If cleanup fails
         """
-        self.run_command(["flatpak", "uninstall", "--unused", "-y"])
+        run(["flatpak", "uninstall", "--unused", "-y"])

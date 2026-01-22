@@ -10,6 +10,7 @@ from typing import List, Optional
 from mixtura.core.providers.base import PackageManager, require_availability
 from mixtura.core.package import Package
 from mixtura.cache import SearchCache
+from mixtura.utils import run, run_capture
 
 
 class HomebrewProvider(PackageManager):
@@ -28,7 +29,7 @@ class HomebrewProvider(PackageManager):
         Raises:
             CommandError: If installation fails
         """
-        self.run_command(["brew", "install"] + packages)
+        run(["brew", "install"] + packages)
 
     @require_availability
     def uninstall(self, packages: List[str]) -> None:
@@ -38,7 +39,7 @@ class HomebrewProvider(PackageManager):
         Raises:
             CommandError: If uninstall fails
         """
-        self.run_command(["brew", "uninstall"] + packages)
+        run(["brew", "uninstall"] + packages)
 
     @require_availability
     def upgrade(self, packages: Optional[List[str]] = None) -> None:
@@ -49,9 +50,9 @@ class HomebrewProvider(PackageManager):
             CommandError: If upgrade fails
         """
         if not packages:
-            self.run_command(["brew", "upgrade"])
+            run(["brew", "upgrade"])
         else:
-            self.run_command(["brew", "upgrade"] + packages)
+            run(["brew", "upgrade"] + packages)
 
     def list_packages(self) -> List[Package]:
         """Return list of installed Homebrew packages (installed on request only)."""
@@ -60,7 +61,7 @@ class HomebrewProvider(PackageManager):
 
         try:
             # Get packages installed on request
-            rc1, req_stdout, _ = self.run_capture(
+            rc1, req_stdout, _ = run_capture(
                 ["brew", "list", "--installed-on-request"]
             )
             if rc1 != 0:
@@ -70,7 +71,7 @@ class HomebrewProvider(PackageManager):
             requested_pkgs = {p.strip() for p in requested_pkgs if p.strip()}
             
             # Get versions
-            rc2, ver_stdout, _ = self.run_capture(
+            rc2, ver_stdout, _ = run_capture(
                 ["brew", "list", "--versions"]
             )
             
@@ -111,7 +112,7 @@ class HomebrewProvider(PackageManager):
             return cached
         
         try:
-            returncode, stdout, stderr = self.run_capture(
+            returncode, stdout, stderr = run_capture(
                 ["brew", "search", "--desc", query]
             )
              
@@ -166,4 +167,4 @@ class HomebrewProvider(PackageManager):
         Raises:
             CommandError: If cleanup fails
         """
-        self.run_command(["brew", "cleanup"])
+        run(["brew", "cleanup"])
