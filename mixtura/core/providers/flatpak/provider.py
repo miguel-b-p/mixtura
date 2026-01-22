@@ -28,7 +28,7 @@ class FlatpakProvider(PackageManager):
         Raises:
             CommandError: If installation fails
         """
-        self.run_command(["flatpak", "install", "-y"] + packages)
+        self.run_command(["flatpak", "install", "--system", "-y"] + packages)
 
     @require_availability
     def uninstall(self, packages: List[str]) -> None:
@@ -50,9 +50,9 @@ class FlatpakProvider(PackageManager):
             CommandError: If upgrade fails
         """
         if not packages:
-            self.run_command(["flatpak", "update", "-y"])
+            self.run_command(["flatpak", "update", "--system", "-y"])
         else:
-            self.run_command(["flatpak", "update", "-y"] + packages)
+            self.run_command(["flatpak", "update", "--system", "-y"] + packages)
 
     def list_packages(self) -> List[Package]:
         """Return list of installed Flatpak apps."""
