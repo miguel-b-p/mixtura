@@ -137,8 +137,7 @@ class TestRun:
     @patch('mixtura.ui.log_error')
     def test_run_failure_raises(self, mock_error, mock_info, mock_console, mock_subrun):
         """Test run raises CommandError on failure."""
-        import subprocess as sp  # noqa: F811 - intentionally reimporting for test
-        mock_subrun.side_effect = sp.CalledProcessError(1, ["false"])
+        mock_subrun.side_effect = subprocess.CalledProcessError(1, ["false"])
         
         with pytest.raises(CommandError):
             run(["false"], silent=True)

@@ -6,6 +6,7 @@ Tests the SearchCache functionality for caching package search results.
 
 import json
 import tempfile
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -67,7 +68,6 @@ class TestSearchCacheOperations:
     
     def test_cache_expiry(self):
         """Test that cached entries expire after TTL."""
-        import time
         
         cache = SearchCache("test_expiry_provider")
         

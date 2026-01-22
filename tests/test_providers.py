@@ -7,6 +7,10 @@ Tests provider implementations for Nix, Flatpak, and Homebrew.
 from unittest.mock import patch
 
 from mixtura.core.package import Package
+from mixtura.core.providers.nixpkgs.provider import NixProvider
+from mixtura.core.providers.flatpak.provider import FlatpakProvider
+from mixtura.core.providers.homebrew.provider import HomebrewProvider
+from mixtura.core.providers import get_all_providers, get_default_provider_name
 
 
 class TestNixProvider:
@@ -17,7 +21,6 @@ class TestNixProvider:
         """Test is_available returns True when nix is installed."""
         mock_which.return_value = "/nix/var/nix/profiles/default/bin/nix"
         
-        from mixtura.core.providers.nixpkgs.provider import NixProvider
         provider = NixProvider()
         
         assert provider.is_available() is True
@@ -28,14 +31,12 @@ class TestNixProvider:
         """Test is_available returns False when nix is not installed."""
         mock_which.return_value = None
         
-        from mixtura.core.providers.nixpkgs.provider import NixProvider
         provider = NixProvider()
         
         assert provider.is_available() is False
     
     def test_name_property(self):
         """Test provider name is 'nixpkgs'."""
-        from mixtura.core.providers.nixpkgs.provider import NixProvider
         provider = NixProvider()
         
         assert provider.name == "nixpkgs"
@@ -46,7 +47,6 @@ class TestNixProvider:
         """Test that install adds nixpkgs# prefix if missing."""
         mock_which.return_value = "/nix/bin/nix"
         
-        from mixtura.core.providers.nixpkgs.provider import NixProvider
         provider = NixProvider()
         provider.install(["git"])
         
@@ -61,7 +61,6 @@ class TestNixProvider:
         mock_which.return_value = "/nix/bin/nix"
         mock_capture.return_value = (0, '{"legacyPackages.x86_64-linux.git": {"version": "2.43.0", "description": "Version control"}}', '')
         
-        from mixtura.core.providers.nixpkgs.provider import NixProvider
         provider = NixProvider()
         results = provider.search("git")
         
@@ -79,7 +78,6 @@ class TestFlatpakProvider:
         """Test is_available returns True when flatpak is installed."""
         mock_which.return_value = "/usr/bin/flatpak"
         
-        from mixtura.core.providers.flatpak.provider import FlatpakProvider
         provider = FlatpakProvider()
         
         assert provider.is_available() is True
@@ -90,14 +88,12 @@ class TestFlatpakProvider:
         """Test is_available returns False when flatpak is not installed."""
         mock_which.return_value = None
         
-        from mixtura.core.providers.flatpak.provider import FlatpakProvider
         provider = FlatpakProvider()
         
         assert provider.is_available() is False
     
     def test_name_property(self):
         """Test provider name is 'flatpak'."""
-        from mixtura.core.providers.flatpak.provider import FlatpakProvider
         provider = FlatpakProvider()
         
         assert provider.name == "flatpak"
@@ -109,7 +105,6 @@ class TestFlatpakProvider:
         mock_which.return_value = "/usr/bin/flatpak"
         mock_capture.return_value = (0, 'Firefox\torg.mozilla.firefox\tBrowser\t121.0', '')
         
-        from mixtura.core.providers.flatpak.provider import FlatpakProvider
         provider = FlatpakProvider()
         results = provider.list_packages()
         
@@ -127,7 +122,6 @@ class TestHomebrewProvider:
         """Test is_available returns True when brew is installed."""
         mock_which.return_value = "/opt/homebrew/bin/brew"
         
-        from mixtura.core.providers.homebrew.provider import HomebrewProvider
         provider = HomebrewProvider()
         
         assert provider.is_available() is True
@@ -138,14 +132,12 @@ class TestHomebrewProvider:
         """Test is_available returns False when brew is not installed."""
         mock_which.return_value = None
         
-        from mixtura.core.providers.homebrew.provider import HomebrewProvider
         provider = HomebrewProvider()
         
         assert provider.is_available() is False
     
     def test_name_property(self):
         """Test provider name is 'homebrew'."""
-        from mixtura.core.providers.homebrew.provider import HomebrewProvider
         provider = HomebrewProvider()
         
         assert provider.name == "homebrew"
@@ -156,14 +148,12 @@ class TestProviderLoading:
     
     def test_get_all_providers_returns_dict(self):
         """Test get_all_providers returns a dictionary."""
-        from mixtura.core.providers import get_all_providers
         providers = get_all_providers()
         
         assert isinstance(providers, dict)
     
     def test_get_all_providers_has_expected_keys(self):
         """Test get_all_providers has expected provider names."""
-        from mixtura.core.providers import get_all_providers
         providers = get_all_providers()
         
         # Should have at least these providers registered (even if not available)
@@ -171,7 +161,6 @@ class TestProviderLoading:
     
     def test_get_default_provider_name(self):
         """Test get_default_provider_name returns a string."""
-        from mixtura.core.providers import get_default_provider_name
         default = get_default_provider_name()
         
         assert isinstance(default, str)
@@ -242,3 +231,4 @@ class TestPackageDataclass:
         assert "vim" in s
         assert "nixpkgs" in s
         assert "9.1.0" in s
+
