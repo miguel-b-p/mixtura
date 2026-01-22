@@ -143,7 +143,7 @@ class TestRun:
             run(["false"], silent=True)
     
     @patch('mixtura.utils.subprocess.run')
-    @patch('mixtura.ui.console')
+    @patch('mixtura.utils.console')
     def test_run_prints_command_when_not_silent(self, mock_console, mock_subrun):
         """Test run prints command when silent=False."""
         mock_subrun.return_value = MagicMock(returncode=0, stdout="", stderr="")

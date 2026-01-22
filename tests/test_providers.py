@@ -42,7 +42,7 @@ class TestNixProvider:
         assert provider.name == "nixpkgs"
     
     @patch('shutil.which')
-    @patch.object(__import__('mixtura.core.providers.nixpkgs.provider', fromlist=['NixProvider']).NixProvider, 'run_command')
+    @patch('mixtura.core.providers.nixpkgs.provider.run')
     def test_install_adds_nixpkgs_prefix(self, mock_run, mock_which):
         """Test that install adds nixpkgs# prefix if missing."""
         mock_which.return_value = "/nix/bin/nix"
@@ -54,12 +54,15 @@ class TestNixProvider:
         call_args = mock_run.call_args[0][0]
         assert "nixpkgs#git" in call_args
     
+    @patch('mixtura.core.providers.nixpkgs.provider.SearchCache')
     @patch('shutil.which')
-    @patch.object(__import__('mixtura.core.providers.nixpkgs.provider', fromlist=['NixProvider']).NixProvider, 'run_capture')
-    def test_search_returns_packages(self, mock_capture, mock_which):
+    @patch('mixtura.core.providers.nixpkgs.provider.run_capture')
+    def test_search_returns_packages(self, mock_capture, mock_which, mock_cache):
         """Test search returns list of packages."""
         mock_which.return_value = "/nix/bin/nix"
         mock_capture.return_value = (0, '{"legacyPackages.x86_64-linux.git": {"version": "2.43.0", "description": "Version control"}}', '')
+        # Ensure cache returns None so we use the mocked run_capture
+        mock_cache.return_value.get.return_value = None
         
         provider = NixProvider()
         results = provider.search("git")
@@ -99,7 +102,7 @@ class TestFlatpakProvider:
         assert provider.name == "flatpak"
     
     @patch('shutil.which')
-    @patch.object(__import__('mixtura.core.providers.flatpak.provider', fromlist=['FlatpakProvider']).FlatpakProvider, 'run_capture')
+    @patch('mixtura.core.providers.flatpak.provider.run_capture')
     def test_list_packages_parses_output(self, mock_capture, mock_which):
         """Test list_packages parses flatpak list output."""
         mock_which.return_value = "/usr/bin/flatpak"

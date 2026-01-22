@@ -25,6 +25,55 @@ from mixtura.ui.prompts import select_package
 from mixtura.utils import CommandError
 
 
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+def _get_pkg_attr(pkg: Union[Package, dict], attr: str, default: str = '') -> str:
+    """Get attribute from Package object or dict."""
+    if hasattr(pkg, attr):
+        return getattr(pkg, attr)
+    return pkg.get(attr, default)
+
+
+def _clean_provider_worker(mgr: PackageManager) -> Tuple[str, bool, str]:
+    """Worker function for cleaning a single provider."""
+    try:
+        mgr.clean()
+        return (mgr.name, True, f"Cleaned {mgr.name}")
+    except CommandError as e:
+        return (mgr.name, False, f"Failed to clean {mgr.name}: {e}")
+    except Exception as e:
+        return (mgr.name, False, f"Failed to clean {mgr.name}: {e}")
+
+
+def _upgrade_provider_worker(mgr: PackageManager, packages: Optional[List[str]]) -> Tuple[str, bool, str]:
+    """Worker function for upgrading a single provider."""
+    try:
+        mgr.upgrade(packages)
+        if packages:
+            return (mgr.name, True, f"Upgraded {len(packages)} package(s) via {mgr.name}")
+        return (mgr.name, True, f"Upgraded all packages in {mgr.name}")
+    except CommandError as e:
+        return (mgr.name, False, f"Failed to upgrade {mgr.name}: {e}")
+    except Exception as e:
+        return (mgr.name, False, f"Failed to upgrade {mgr.name}: {e}")
+
+
+def _install_provider_worker(provider_name: str, pkgs: List[str]) -> Tuple[str, bool, str]:
+    """Worker function for installing packages via a provider."""
+    mgr = get_provider(provider_name)
+    if not mgr:
+        return (provider_name, False, f"Provider '{provider_name}' unknown.")
+    if not mgr.is_available():
+        return (provider_name, False, f"Provider '{mgr.name}' is not available.")
+    try:
+        mgr.install(pkgs)
+        return (provider_name, True, f"Installed {len(pkgs)} package(s) via {mgr.name}")
+    except (CommandError, Exception) as e:
+        return (provider_name, False, f"Failed to install via {mgr.name}: {e}")
+
+
 class Orchestrator:
     """
     Service layer that orchestrates all package management operations.
@@ -53,9 +102,21 @@ class Orchestrator:
             provider, pkg_str = arg.split('#', 1)
             items = [p.strip() for p in pkg_str.split(',') if p.strip()]
             return (provider, items)
-        else:
-            items = [p.strip() for p in arg.split(',') if p.strip()]
-            return (get_default_provider_name(), items)
+        items = [p.strip() for p in arg.split(',') if p.strip()]
+        return (get_default_provider_name(), items)
+    
+    def _parse_explicit_packages(self, packages: List[str]) -> Dict[str, List[str]]:
+        """
+        Parse package arguments that have explicit provider prefixes.
+        
+        Returns dict of provider -> list of packages (only for args with '#').
+        """
+        result: Dict[str, List[str]] = {}
+        for arg in packages:
+            if '#' in arg:
+                prov, items = self.parse_single_arg(arg)
+                result.setdefault(prov, []).extend(items)
+        return result
     
     def filter_results_smart(
         self,
@@ -73,32 +134,20 @@ class Orchestrator:
         if show_all or not results:
             return results
         
-        def get_name(r: Union[Package, dict]) -> str:
-            if hasattr(r, 'name'):
-                return r.name
-            return r.get('name', '')
-        
         # Check if pattern has wildcards
         if '*' in pattern or '?' in pattern:
             regex_pattern = fnmatch.translate(pattern)
             regex = re.compile(regex_pattern, re.IGNORECASE)
-            filtered = [r for r in results if regex.match(get_name(r))]
+            filtered = [r for r in results if regex.match(_get_pkg_attr(r, 'name'))]
             return filtered if filtered else results
         
         # Exact match first
-        exact = [r for r in results if get_name(r).lower() == pattern.lower()]
-        if exact:
-            return exact
-        
-        # No exact match found - return all results
-        return results
+        exact = [r for r in results if _get_pkg_attr(r, 'name').lower() == pattern.lower()]
+        return exact if exact else results
     
     def search_all(self, query: str) -> List[Package]:
-        """
-        Search for query in all available package managers in parallel.
-        """
+        """Search for query in all available package managers in parallel."""
         available = get_available_providers()
-        
         if not available:
             return []
         
@@ -118,23 +167,13 @@ class Orchestrator:
         
         return all_results
     
-    def run_parallel_tasks(
+    def _run_parallel_tasks(
         self,
         tasks: List[Tuple],
         worker_func: Callable[..., Tuple[str, bool, str]],
         description: str = "Running tasks"
     ) -> List[Tuple[str, bool, str]]:
-        """
-        Execute tasks in parallel using ThreadPoolExecutor.
-        
-        Args:
-            tasks: List of argument tuples to pass to worker_func
-            worker_func: Function that takes *task args and returns (name, success, message)
-            description: Description for logging
-            
-        Returns:
-            List of (name, success, message) tuples
-        """
+        """Execute tasks in parallel using ThreadPoolExecutor."""
         if not tasks:
             return []
         
@@ -148,6 +187,58 @@ class Orchestrator:
         
         return results
     
+    def _search_installed_packages(self, pattern: str) -> List[Package]:
+        """Search for installed packages matching a pattern across all providers."""
+        matches: List[Package] = []
+        for mgr in get_available_providers().values():
+            try:
+                installed = mgr.list_packages()
+                for pkg in installed:
+                    p_name = _get_pkg_attr(pkg, 'name')
+                    if pattern.lower() in p_name.lower():
+                        if hasattr(pkg, 'provider'):
+                            matches.append(pkg)
+                        else:
+                            pkg['provider'] = mgr.name
+                            matches.append(Package.from_dict(pkg))
+            except Exception as e:
+                log_warn(f"Failed to list packages from {mgr.name}: {e}")
+        return matches
+    
+    def _select_packages(
+        self,
+        results: List[Package],
+        pattern: str,
+        auto_confirm: bool,
+        show_all: bool,
+        prompt: str,
+        allow_all: bool = False
+    ) -> Optional[List[Package]]:
+        """
+        Handle package selection UI flow.
+        Returns None to skip, empty list to cancel, or selected packages.
+        """
+        if not results:
+            log_warn(f"No packages found for '{pattern}'.")
+            return None
+        
+        results = self.filter_results_smart(results, pattern, show_all)
+        
+        if auto_confirm and len(results) == 1:
+            log_info(f"Auto-selecting the only match for '{pattern}'")
+            return results
+        
+        display_package_list(results, f"Found {len(results)} matches for '{pattern}'")
+        selected = select_package(results, prompt, allow_all=allow_all)
+        
+        if selected is None:
+            return None
+        if not selected:
+            console.print("Skipping...")
+            return None
+        
+        return selected
+    
     # =========================================================================
     # Command Flows
     # =========================================================================
@@ -158,58 +249,31 @@ class Orchestrator:
         auto_confirm: bool = False, 
         show_all: bool = False
     ) -> None:
-        """
-        Install packages flow.
+        """Install packages flow."""
+        packages_to_install: Dict[str, List[str]] = self._parse_explicit_packages(packages)
         
-        Handles: parsing provider#pkg, searching ambiguous packages, confirmation, installation.
-        """
-        packages_to_install: Dict[str, List[str]] = {}
-        
+        # Process ambiguous packages (no provider prefix)
         for arg in packages:
             if '#' in arg:
-                # Explicit provider
-                provider, items = self.parse_single_arg(arg)
-                if provider not in packages_to_install:
-                    packages_to_install[provider] = []
-                packages_to_install[provider].extend(items)
-            else:
-                # Ambiguous package - Search Mode
-                items = [p.strip() for p in arg.split(',') if p.strip()]
+                continue
+            
+            for item in [p.strip() for p in arg.split(',') if p.strip()]:
+                log_task(f"Searching for '[bold]{item}[/bold]' across all providers...")
+                results = self.search_all(item)
                 
-                for item in items:
-                    log_task(f"Searching for '[bold]{item}[/bold]' across all providers...")
-                    results = self.search_all(item)
-                    
-                    if not results:
-                        log_warn(f"No packages found for '{item}'.")
-                        continue
-                    
-                    # Apply smart filtering
-                    results = self.filter_results_smart(results, item, show_all)
-                    
-                    # Auto-select if --yes and only one result
-                    if auto_confirm and len(results) == 1:
-                        selected_list = results
-                        log_info(f"Auto-selecting the only match for '{item}'")
-                    else:
-                        display_package_list(results, f"Found {len(results)} matches for '{item}'")
-                        selected_list = select_package(results, "Select a package to add")
-                        
-                        if selected_list is None:
-                            continue
-                        elif not selected_list:
-                            console.print("Skipping...")
-                            continue
-                    
-                    selected = selected_list[0]
-                    prov = selected.provider if hasattr(selected, 'provider') else selected.get('provider', 'unknown')
-                    pkg_id = selected.id if hasattr(selected, 'id') else (selected.get('id') or selected.get('name'))
-                    pkg_name = selected.name if hasattr(selected, 'name') else selected.get('name', 'unknown')
-                    
-                    if prov not in packages_to_install:
-                        packages_to_install[prov] = []
-                    packages_to_install[prov].append(pkg_id)
-                    log_info(f"Selected {pkg_name} from {prov}")
+                selected = self._select_packages(
+                    results, item, auto_confirm, show_all, "Select a package to add"
+                )
+                if not selected:
+                    continue
+                
+                pkg = selected[0]
+                prov = _get_pkg_attr(pkg, 'provider', 'unknown')
+                pkg_id = _get_pkg_attr(pkg, 'id') or _get_pkg_attr(pkg, 'name')
+                pkg_name = _get_pkg_attr(pkg, 'name', 'unknown')
+                
+                packages_to_install.setdefault(prov, []).append(pkg_id)
+                log_info(f"Selected {pkg_name} from {prov}")
         
         if not packages_to_install:
             log_warn("No packages selected for installation.")
@@ -220,27 +284,12 @@ class Orchestrator:
     
     def _do_install(self, packages_to_install: Dict[str, List[str]]) -> None:
         """Execute installation for resolved packages."""
-        def _install_provider(provider_name: str, pkgs: List[str]) -> Tuple[str, bool, str]:
-            mgr = get_provider(provider_name)
-            if not mgr:
-                return (provider_name, False, f"Provider '{provider_name}' unknown.")
-            if not mgr.is_available():
-                return (provider_name, False, f"Provider '{mgr.name}' is not available.")
-            try:
-                mgr.install(pkgs)
-                return (provider_name, True, f"Installed {len(pkgs)} package(s) via {mgr.name}")
-            except CommandError as e:
-                return (provider_name, False, f"Failed to install via {mgr.name}: {e}")
-            except Exception as e:
-                return (provider_name, False, f"Failed to install via {mgr.name}: {e}")
-        
-        # Log what we're about to do
         for prov, pkgs in packages_to_install.items():
             log_info(f"{prov}: {', '.join(pkgs)}")
         console.print()
         
         tasks = [(prov, pkgs) for prov, pkgs in packages_to_install.items()]
-        results = self.run_parallel_tasks(tasks, _install_provider, "Installing packages")
+        results = self._run_parallel_tasks(tasks, _install_provider_worker, "Installing packages")
         display_operation_results(results, "Installation process finished.", "Installation completed with errors.")
     
     def remove_flow(
@@ -249,84 +298,39 @@ class Orchestrator:
         auto_confirm: bool = False, 
         show_all: bool = False
     ) -> None:
-        """
-        Remove packages flow.
+        """Remove packages flow."""
+        packages_to_remove: Dict[str, List[str]] = self._parse_explicit_packages(packages)
         
-        Handles: searching installed packages, confirmation, removal.
-        """
-        packages_to_remove: Dict[str, List[str]] = {}
-        
+        # Process ambiguous packages (no provider prefix)
         for arg in packages:
             if '#' in arg:
-                # Explicit provider
-                provider, items = self.parse_single_arg(arg)
-                if provider not in packages_to_remove:
-                    packages_to_remove[provider] = []
-                packages_to_remove[provider].extend(items)
-            else:
-                # Ambiguous package - Search installed
-                items = [p.strip() for p in arg.split(',') if p.strip()]
+                continue
+            
+            for item in [p.strip() for p in arg.split(',') if p.strip()]:
+                log_task(f"Searching for installed package '[bold]{item}[/bold]'...")
+                matches = self._search_installed_packages(item)
                 
-                for item in items:
-                    log_task(f"Searching for installed package '[bold]{item}[/bold]'...")
-                    
-                    matches: List[Package] = []
-                    for mgr in get_available_providers().values():
-                        try:
-                            installed = mgr.list_packages()
-                            for pkg in installed:
-                                p_name = pkg.name if hasattr(pkg, 'name') else pkg.get('name', '')
-                                if item.lower() in p_name.lower():
-                                    if hasattr(pkg, 'provider'):
-                                        matches.append(pkg)
-                                    else:
-                                        pkg['provider'] = mgr.name
-                                        matches.append(Package.from_dict(pkg))
-                        except Exception as e:
-                            log_warn(f"Failed to list packages from {mgr.name}: {e}")
-                    
-                    if not matches:
-                        log_warn(f"No installed packages found matching '{item}'.")
-                        continue
-                    
-                    # Filter out already selected
-                    filtered_matches = []
-                    for m in matches:
-                        prov = m.provider
-                        pid = m.id or m.name
-                        if pid not in packages_to_remove.get(prov, []):
-                            filtered_matches.append(m)
-                    
-                    if not filtered_matches:
-                        if matches:
-                            log_info(f"Matches for '{item}' are already selected for removal.")
-                        continue
-                    
-                    matches = filtered_matches
-                    matches = self.filter_results_smart(matches, item, show_all)
-                    
-                    if auto_confirm and len(matches) == 1:
-                        selected_list = matches
-                        log_info(f"Auto-selecting the only match for '{item}'")
-                    else:
-                        display_package_list(matches, f"Found {len(matches)} installed matches for '{item}'")
-                        selected_list = select_package(matches, "Select a package to remove", allow_all=True)
-                        
-                        if selected_list is None:
-                            continue
-                        elif not selected_list:
-                            console.print("Skipping...")
-                            continue
-                    
-                    for selected in selected_list:
-                        prov = selected.provider
-                        pkg_id = selected.id or selected.name
-                        pkg_name = selected.name
-                        
-                        if prov not in packages_to_remove:
-                            packages_to_remove[prov] = []
-                        packages_to_remove[prov].append(pkg_id)
-                        log_info(f"Selected {pkg_name} from {prov} for removal")
+                # Filter out already selected
+                matches = [
+                    m for m in matches
+                    if (m.id or m.name) not in packages_to_remove.get(m.provider, [])
+                ]
+                
+                if not matches:
+                    log_warn(f"No installed packages found matching '{item}'.")
+                    continue
+                
+                selected = self._select_packages(
+                    matches, item, auto_confirm, show_all, 
+                    "Select a package to remove", allow_all=True
+                )
+                if not selected:
+                    continue
+                
+                for pkg in selected:
+                    pkg_id = pkg.id or pkg.name
+                    packages_to_remove.setdefault(pkg.provider, []).append(pkg_id)
+                    log_info(f"Selected {pkg.name} from {pkg.provider} for removal")
         
         if not packages_to_remove:
             log_warn("No packages selected for removal.")
@@ -354,20 +358,15 @@ class Orchestrator:
             log_success("Removal process finished.")
     
     def upgrade_flow(self, packages: Optional[List[str]] = None) -> None:
-        """
-        Upgrade packages flow.
-        
-        If packages is empty, upgrade all. Otherwise upgrade specific providers/packages.
-        """
+        """Upgrade packages flow."""
         if not packages:
-            self._upgrade_all()
+            self._do_upgrade_all()
         else:
-            self._upgrade_specific(packages)
+            self._do_upgrade_specific(packages)
     
-    def _upgrade_all(self) -> None:
+    def _do_upgrade_all(self) -> None:
         """Upgrade all packages from all available providers."""
         available = get_available_providers()
-        
         if not available:
             log_warn("No package managers available.")
             return
@@ -377,39 +376,29 @@ class Orchestrator:
         console.print()
         
         tasks = [(mgr, None) for mgr in available.values()]
-        results = self.run_parallel_tasks(tasks, self._upgrade_provider, "Upgrading all providers")
+        results = self._run_parallel_tasks(tasks, _upgrade_provider_worker, "Upgrading all providers")
         display_operation_results(results, "Upgrade complete.", "Upgrade completed with errors.")
     
-    def _upgrade_specific(self, packages: List[str]) -> None:
+    def _do_upgrade_specific(self, packages: List[str]) -> None:
         """Upgrade specific providers or packages."""
+        tasks: List[Tuple[PackageManager, Optional[List[str]]]] = []
         packages_map: Dict[str, List[str]] = {}
-        providers_full = []
         
         for arg in packages:
-            # Check if arg is a provider name
-            if get_provider(arg):
-                providers_full.append(arg)
-                continue
-            
-            prov, items = self.parse_single_arg(arg)
-            if prov not in packages_map:
-                packages_map[prov] = []
-            packages_map[prov].extend(items)
-        
-        if not packages_map and not providers_full:
-            log_warn("No packages or providers specified for upgrade.")
-            return
-        
-        tasks: List[Tuple[PackageManager, Optional[List[str]]]] = []
-        
-        for prov in providers_full:
-            mgr = get_provider(prov)
-            if mgr and mgr.is_available():
-                log_info(f"Will upgrade all in: {prov}")
-                tasks.append((mgr, None))
+            mgr = get_provider(arg)
+            if mgr:
+                # Arg is a provider name - upgrade all in that provider
+                if mgr.is_available():
+                    log_info(f"Will upgrade all in: {arg}")
+                    tasks.append((mgr, None))
+                else:
+                    log_warn(f"Package manager '{arg}' is not available.")
             else:
-                log_warn(f"Package manager '{prov}' is not available or not found.")
+                # Parse as provider#packages
+                prov, items = self.parse_single_arg(arg)
+                packages_map.setdefault(prov, []).extend(items)
         
+        # Add package-specific tasks
         for prov, pkgs in packages_map.items():
             mgr = get_provider(prov)
             if mgr and mgr.is_available():
@@ -423,45 +412,26 @@ class Orchestrator:
             return
         
         console.print()
-        results = self.run_parallel_tasks(tasks, self._upgrade_provider, "Upgrading providers")
+        results = self._run_parallel_tasks(tasks, _upgrade_provider_worker, "Upgrading providers")
         display_operation_results(results, "Upgrade complete.", "Upgrade completed with errors.")
     
-    @staticmethod
-    def _upgrade_provider(mgr: PackageManager, packages: Optional[List[str]]) -> Tuple[str, bool, str]:
-        """Worker function for upgrading a single provider."""
-        try:
-            mgr.upgrade(packages)
-            if packages:
-                return (mgr.name, True, f"Upgraded {len(packages)} package(s) via {mgr.name}")
-            else:
-                return (mgr.name, True, f"Upgraded all packages in {mgr.name}")
-        except CommandError as e:
-            return (mgr.name, False, f"Failed to upgrade {mgr.name}: {e}")
-        except Exception as e:
-            return (mgr.name, False, f"Failed to upgrade {mgr.name}: {e}")
-    
     def list_flow(self, provider_type: Optional[str] = None) -> None:
-        """
-        List installed packages flow.
-        """
-        managers_to_list = []
-        
+        """List installed packages flow."""
         if provider_type:
             mgr = get_provider(provider_type)
-            if mgr:
-                managers_to_list.append(mgr)
-            else:
+            if not mgr:
                 log_warn(f"Unknown provider '{provider_type}'")
                 return
+            managers = [mgr]
         else:
-            managers_to_list = list(get_all_providers().values())
+            managers = list(get_all_providers().values())
         
-        if not managers_to_list:
+        if not managers:
             log_warn("No package managers found.")
             return
         
         first = True
-        for mgr in managers_to_list:
+        for mgr in managers:
             if not mgr.is_available():
                 continue
             
@@ -474,21 +444,14 @@ class Orchestrator:
             display_installed_packages(pkgs, mgr.name)
     
     def search_flow(self, queries: List[str], show_all: bool = False) -> None:
-        """
-        Search for packages flow.
-        """
+        """Search for packages flow."""
         for q in queries:
             if '#' in q:
-                # Provider-specific search
                 prov, term = q.split('#', 1)
                 mgr = get_provider(prov)
                 
-                if not mgr:
+                if not mgr or not mgr.is_available():
                     log_warn(f"Package manager '{prov}' is not available or not found.")
-                    continue
-                
-                if not mgr.is_available():
-                    log_warn(f"Package manager '{prov}' is not available.")
                     continue
                 
                 results = mgr.search(term)
@@ -499,7 +462,6 @@ class Orchestrator:
                 else:
                     log_warn(f"No results for '{term}' in {prov}")
             else:
-                # Search all providers
                 log_task(f"Searching for '{q}'...")
                 results = self.search_all(q)
                 results = self.filter_results_smart(results, q, show_all)
@@ -510,21 +472,8 @@ class Orchestrator:
                     log_warn(f"No results for '{q}'")
     
     def clean_flow(self, modules: Optional[List[str]] = None) -> None:
-        """
-        Clean/garbage collection flow.
-        """
-        @staticmethod
-        def _clean_provider(mgr: PackageManager) -> Tuple[str, bool, str]:
-            try:
-                mgr.clean()
-                return (mgr.name, True, f"Cleaned {mgr.name}")
-            except CommandError as e:
-                return (mgr.name, False, f"Failed to clean {mgr.name}: {e}")
-            except Exception as e:
-                return (mgr.name, False, f"Failed to clean {mgr.name}: {e}")
-        
+        """Clean/garbage collection flow."""
         if not modules:
-            # Clean all
             available = get_available_providers()
             if not available:
                 log_warn("No package managers available.")
@@ -535,18 +484,17 @@ class Orchestrator:
             console.print()
             
             tasks = [(mgr,) for mgr in available.values()]
-            results = self.run_parallel_tasks(tasks, _clean_provider, "Cleaning all providers")
+            results = self._run_parallel_tasks(tasks, _clean_provider_worker, "Cleaning all providers")
             display_operation_results(results, "Clean complete.", "Clean completed with errors.")
             return
         
-        # Clean specific
+        # Clean specific providers
         managers_to_clean = []
         for mod_name in modules:
             mgr = get_provider(mod_name)
             if not mgr:
                 log_warn(f"Package manager '{mod_name}' is not available or not found.")
                 continue
-            
             if not mgr.is_available():
                 log_warn(f"Provider '{mgr.name}' is not available.")
                 continue
@@ -560,5 +508,5 @@ class Orchestrator:
         
         console.print()
         tasks = [(mgr,) for mgr in managers_to_clean]
-        results = self.run_parallel_tasks(tasks, _clean_provider, "Cleaning providers")
+        results = self._run_parallel_tasks(tasks, _clean_provider_worker, "Cleaning providers")
         display_operation_results(results, "Clean complete.", "Clean completed with errors.")
