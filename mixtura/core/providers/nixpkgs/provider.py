@@ -54,11 +54,75 @@ class NixProvider(PackageManager):
         """
         if not packages:
             # Upgrade all
-            self.run_command(["nix", "profile", "upgrade", "--impure", "--all"])
+            self._upgrade_with_lock_retry(["nix", "profile", "upgrade", "--impure", "--all"])
         else:
             # Upgrade specific
             for pkg in packages:
-                self.run_command(["nix", "profile", "upgrade", "--impure", pkg], check_warnings=True)
+                self._upgrade_with_lock_retry(
+                    ["nix", "profile", "upgrade", "--impure", pkg],
+                    check_warnings=True
+                )
+
+    def _upgrade_with_lock_retry(
+        self,
+        cmd: List[str],
+        check_warnings: bool = False
+    ) -> None:
+        """
+        Execute upgrade command with lock file error detection and retry.
+        
+        If the command fails with "cannot write modified lock file" error,
+        ask the user if they want to retry with --no-write-lock-file flag.
+        """
+        from mixtura.ui import log_warn
+        from mixtura.ui.prompts import confirm_action
+        
+        # First, try running with output capture to detect lock file error
+        returncode, stdout, stderr = self.run_capture(cmd)
+        
+        if returncode == 0:
+            # Success on first try
+            if stdout:
+                print(stdout, end='')
+            return
+        
+        # Check if it's the lock file error
+        if "cannot write modified lock file" in stderr:
+            log_warn("Nix could not write the lock file for a remote flake.")
+            
+            if confirm_action(
+                "Continue ignoring the lock file write? (--no-write-lock-file)",
+                default=True
+            ):
+                # Retry with --no-write-lock-file flag
+                # Insert the flag after "upgrade"
+                retry_cmd = cmd.copy()
+                upgrade_idx = retry_cmd.index("upgrade")
+                retry_cmd.insert(upgrade_idx + 1, "--no-write-lock-file")
+                
+                self.run_command(retry_cmd, check_warnings=check_warnings)
+            else:
+                # User declined, raise the original error
+                from mixtura.utils import CommandError
+                raise CommandError(
+                    f"Upgrade cancelled by user",
+                    returncode=returncode,
+                    cmd=" ".join(cmd)
+                )
+        else:
+            # Some other error, show it and raise
+            if stdout:
+                print(stdout, end='')
+            if stderr:
+                import sys
+                print(stderr, file=sys.stderr, end='')
+            
+            from mixtura.utils import CommandError
+            raise CommandError(
+                f"Command failed with exit code {returncode}",
+                returncode=returncode,
+                cmd=" ".join(cmd)
+            )
 
     def list_packages(self) -> List[Package]:
         """Return list of installed Nix packages."""
