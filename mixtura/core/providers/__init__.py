@@ -48,7 +48,7 @@ def get_all_providers() -> Dict[str, "PackageManager"]:
     Get all registered package manager providers.
     
     Returns:
-        Dictionary mapping provider names to their instances
+        Dict[str, PackageManager]: Dictionary mapping provider names to their instances.
     """
     _load_providers()
     return _providers_cache.copy()
@@ -59,10 +59,10 @@ def get_provider(name: str) -> Optional["PackageManager"]:
     Get a specific provider by name.
     
     Args:
-        name: Provider name (e.g., 'nixpkgs', 'flatpak')
+        name: Provider name (e.g., 'nixpkgs', 'flatpak').
     
     Returns:
-        PackageManager instance or None if not found
+        Optional[PackageManager]: PackageManager instance or None if not found.
     """
     _load_providers()
     return _providers_cache.get(name)
@@ -73,14 +73,19 @@ def get_available_providers() -> Dict[str, "PackageManager"]:
     Get all providers that are currently available (installed on system).
     
     Returns:
-        Dictionary of available providers
+        Dict[str, PackageManager]: Dictionary of available providers.
     """
     _load_providers()
     return {name: prov for name, prov in _providers_cache.items() if prov.is_available()}
 
 
 def get_default_provider_name() -> str:
-    """Get the default provider name (usually 'nixpkgs')."""
+    """
+    Get the default provider name (usually 'nixpkgs').
+
+    Returns:
+        str: The name of the default provider.
+    """
     _load_providers()
     if "nixpkgs" in _providers_cache:
         return "nixpkgs"

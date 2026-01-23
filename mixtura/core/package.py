@@ -16,6 +16,16 @@ class Package:
     
     This is the standard data structure returned by search() and list_packages()
     methods across all providers, ensuring consistent data access.
+
+    Attributes:
+        name: The name of the package.
+        provider: The name of the provider (e.g., 'nixpkgs', 'flatpak').
+        id: The unique identifier used for install/uninstall operations.
+        version: The version string of the package. Defaults to "unknown".
+        description: A brief description of the package. Defaults to empty string.
+        installed: Whether the package is currently installed. Defaults to False.
+        origin: Optional origin information (e.g., Nix attrPath).
+        extra: Dictionary containing provider-specific extra data.
     """
     name: str
     provider: str
@@ -32,6 +42,9 @@ class Package:
         
         This allows gradual migration - existing code expecting dicts
         can still work while we transition to the dataclass.
+
+        Returns:
+            Dict[str, Any]: A dictionary representation of the package.
         """
         return {
             "name": self.name,
@@ -51,6 +64,13 @@ class Package:
         
         This helper allows providers to gradually migrate from returning
         dicts to returning Package objects.
+
+        Args:
+            data: Dictionary containing package data.
+            provider: Default provider name if not found in data.
+
+        Returns:
+            Package: A new Package instance.
         """
         return cls(
             name=data.get("name", "unknown"),
@@ -73,6 +93,11 @@ class PackageSpec:
     """
     Represents a package specification from user input.
     E.g. "nixpkgs#vim", "git", "flatpak#Spotify"
+
+    Attributes:
+        name: The name of the package.
+        provider: Optional explicit provider name.
+        version: Optional version requirement.
     """
     name: str
     provider: Optional[str] = None
@@ -86,6 +111,15 @@ class PackageSpec:
         Formats:
           - "package_name"
           - "provider#package_name"
+
+        Args:
+            spec_str: The specification string to parse.
+
+        Returns:
+            PackageSpec: The parsed specification.
+
+        Raises:
+            ValueError: If spec_str is empty.
         """
         if not spec_str:
             raise ValueError("Package specification cannot be empty")
@@ -119,7 +153,14 @@ class PackageSpec:
 
 @dataclass
 class OperationResult:
-    """Result of an operation (install, remove, upgrade)."""
+    """
+    Result of an operation (install, remove, upgrade).
+
+    Attributes:
+        provider: The provider that performed the operation.
+        success: Whether the operation was successful.
+        message: A message describing the result.
+    """
     provider: str
     success: bool
     message: str

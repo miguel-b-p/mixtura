@@ -31,8 +31,11 @@ class NixProvider(PackageManager):
         """
         Install packages via Nix profile.
         
+        Args:
+            packages: List of packages to install.
+
         Raises:
-            CommandError: If installation fails
+            CommandError: If installation fails.
         """
         for pkg in packages:
             target = pkg if "#" in pkg else f"nixpkgs#{pkg}"
@@ -43,8 +46,11 @@ class NixProvider(PackageManager):
         """
         Remove packages from Nix profile.
         
+        Args:
+            packages: List of packages to remove.
+
         Raises:
-            CommandError: If uninstall fails
+            CommandError: If uninstall fails.
         """
         for pkg in packages:
             run(["nix", "profile", "remove", pkg], check_warnings=True)
@@ -54,8 +60,11 @@ class NixProvider(PackageManager):
         """
         Upgrade Nix profile packages.
         
+        Args:
+            packages: Optional list of packages to upgrade.
+
         Raises:
-            CommandError: If upgrade fails
+            CommandError: If upgrade fails.
         """
         if not packages:
             # Upgrade all
@@ -78,6 +87,13 @@ class NixProvider(PackageManager):
         
         If the command fails with "cannot write modified lock file" error,
         ask the user if they want to retry with --no-write-lock-file flag.
+
+        Args:
+            cmd: The command to run as a list of strings.
+            check_warnings: Whether to check stderr for warnings even on success.
+
+        Raises:
+            CommandError: If the command fails and is not retried/handled.
         """
 
         
@@ -145,6 +161,12 @@ class NixProvider(PackageManager):
                 Extract version from a Nix store path by parsing the path directly.
                 Store path format: /nix/store/HASH-package-name-version
                 This is more robust than assuming fixed hash lengths.
+
+                Args:
+                    store_path: The Nix store path.
+
+                Returns:
+                    str: The extracted version or "unknown".
                 """
                 if not store_path:
                     return "unknown"
@@ -246,6 +268,13 @@ class NixProvider(PackageManager):
                 2. Parse version from store path name
                 3. Query references using nix-store --query --references
                 4. Fall back to "unknown"
+
+                Args:
+                    element_details: Dictionary of element details from `nix profile list --json`.
+                    store_paths: List of associated store paths.
+
+                Returns:
+                    str: The extracted version.
                 """
                 # First, check if JSON already has version info
                 if "version" in element_details:
@@ -309,7 +338,15 @@ class NixProvider(PackageManager):
             return []
 
     def search(self, query: str) -> List[Package]:
-        """Search for packages in Nixpkgs."""
+        """
+        Search for packages in Nixpkgs.
+
+        Args:
+            query: The search query.
+
+        Returns:
+            List[Package]: valid matching packages.
+        """
         if not self.is_available():
             return []
         

@@ -26,8 +26,11 @@ class HomebrewProvider(PackageManager):
         """
         Install packages via Homebrew.
         
+        Args:
+            packages: List of packages to install.
+
         Raises:
-            CommandError: If installation fails
+            CommandError: If installation fails.
         """
         run(["brew", "install"] + packages)
 
@@ -36,8 +39,11 @@ class HomebrewProvider(PackageManager):
         """
         Remove Homebrew packages.
         
+        Args:
+            packages: List of packages to remove.
+
         Raises:
-            CommandError: If uninstall fails
+            CommandError: If uninstall fails.
         """
         run(["brew", "uninstall"] + packages)
 
@@ -46,8 +52,11 @@ class HomebrewProvider(PackageManager):
         """
         Upgrade Homebrew packages.
         
+        Args:
+            packages: Optional list of packages to upgrade.
+
         Raises:
-            CommandError: If upgrade fails
+            CommandError: If upgrade fails.
         """
         if not packages:
             run(["brew", "upgrade"])
@@ -55,7 +64,12 @@ class HomebrewProvider(PackageManager):
             run(["brew", "upgrade"] + packages)
 
     def list_packages(self) -> List[Package]:
-        """Return list of installed Homebrew packages (installed on request only)."""
+        """
+        Return list of installed Homebrew packages (installed on request only).
+
+        Returns:
+            List[Package]: Installed Homebrew packages.
+        """
         if not self.is_available():
             return []
 
@@ -101,7 +115,15 @@ class HomebrewProvider(PackageManager):
             return []
 
     def search(self, query: str) -> List[Package]:
-        """Search for packages in Homebrew."""
+        """
+        Search for packages in Homebrew.
+
+        Args:
+            query: Search query.
+
+        Returns:
+            List[Package]: Found packages.
+        """
         if not self.is_available():
             return []
         
@@ -165,6 +187,6 @@ class HomebrewProvider(PackageManager):
         Run Homebrew cleanup.
         
         Raises:
-            CommandError: If cleanup fails
+            CommandError: If cleanup fails.
         """
         run(["brew", "cleanup"])

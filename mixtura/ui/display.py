@@ -20,10 +20,10 @@ def display_package_list(
     Display a formatted list of packages using Rich.
     
     Args:
-        packages: List of Package objects
-        title: Header text to display above the list
-        show_index: Whether to show numbered indices
-        max_desc_length: Maximum description length before truncation
+        packages: List of Package objects.
+        title: Header text to display above the list.
+        show_index: Whether to show numbered indices.
+        max_desc_length: Maximum description length before truncation.
     """
     console.print()
     console.print(f"[main bold]{title}:[/main bold]")
@@ -56,8 +56,8 @@ def display_installed_packages(
     Display a list of installed packages for a provider.
     
     Args:
-        packages: List of Package objects
-        provider_name: Name of the provider
+        packages: List of Package objects.
+        provider_name: Name of the provider.
     """
     if not packages:
         console.print(f"[dim]No packages found in {provider_name}[/dim]")
@@ -81,9 +81,9 @@ def display_operation_results(
     Display results of operations (install/upgrade/etc).
     
     Args:
-        results: List of (name, success, message) tuples
-        success_msg: Message to show if all succeeded
-        partial_msg: Message to show if some failed
+        results: List of (name, success, message) tuples.
+        success_msg: Message to show if all succeeded.
+        partial_msg: Message to show if some failed.
     """
     console.print()
     success_count = 0

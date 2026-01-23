@@ -21,6 +21,11 @@ class CommandError(Exception):
     This replaces the previous behavior of calling sys.exit() directly,
     allowing callers to catch and handle errors gracefully (e.g., continue
     installing other packages even if one fails).
+
+    Attributes:
+        message (str): Explanation of the error.
+        returncode (int): The exit code of the subprocess.
+        cmd (str): The command that failed.
     """
     def __init__(self, message: str, returncode: int = 1, cmd: str = ""):
         super().__init__(message)
@@ -48,17 +53,17 @@ def run(
     being run and show output in real-time (e.g., package installation).
     
     Args:
-        cmd: Command and arguments as a list (NEVER pass a string - use shlex.split if needed)
-        silent: If True, don't print the command being run
-        check_warnings: If True, capture output and check for warning patterns
-        show_output: If True, show stdout/stderr (only applies when check_warnings=True)
-        cwd: Working directory for the command
-        env: Environment variables (merged with current env if provided)
-        timeout: Timeout in seconds (None = no timeout)
+        cmd: Command and arguments as a list (NEVER pass a string - use shlex.split if needed).
+        silent: If True, don't print the command being run.
+        check_warnings: If True, capture output and check for warning patterns.
+        show_output: If True, show stdout/stderr (only applies when check_warnings=True).
+        cwd: Working directory for the command.
+        env: Environment variables (merged with current env if provided).
+        timeout: Timeout in seconds (None = no timeout).
     
     Raises:
-        CommandError: If the command fails (non-zero exit code)
-        ValueError: If cmd is not a list
+        CommandError: If the command fails (non-zero exit code).
+        ValueError: If cmd is not a list.
     
     Security notes:
         - Always pass cmd as a list to prevent shell injection
@@ -158,18 +163,18 @@ def run_capture(
     the output (e.g., listing packages, searching).
     
     Args:
-        cmd: Command and arguments as a list
-        cwd: Working directory for the command
-        env: Environment variables (merged with current env if provided)
-        timeout: Timeout in seconds (None = no timeout)
-        check: If True, raise CommandError on non-zero exit code
+        cmd: Command and arguments as a list.
+        cwd: Working directory for the command.
+        env: Environment variables (merged with current env if provided).
+        timeout: Timeout in seconds (None = no timeout).
+        check: If True, raise CommandError on non-zero exit code.
     
     Returns:
-        Tuple of (return_code, stdout, stderr)
+        Tuple[int, str, str]: A tuple containing (return_code, stdout, stderr).
     
     Raises:
-        CommandError: If check=True and command fails
-        ValueError: If cmd is not a list
+        CommandError: If check=True and command fails.
+        ValueError: If cmd is not a list.
     
     Security notes:
         - Always pass cmd as a list to prevent shell injection

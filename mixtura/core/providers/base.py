@@ -23,8 +23,14 @@ def require_availability(func: Callable[P, R]) -> Callable[P, R]:
     Methods like `list_packages` and `search` that return empty lists when unavailable
     should NOT use this decorator.
     
+    Args:
+        func: The function to decorate.
+
+    Returns:
+        Callable: The wrapped function.
+
     Raises:
-        RuntimeError: If the package manager is not available
+        RuntimeError: If the package manager is not available.
     """
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
@@ -40,6 +46,9 @@ class PackageManager(ABC):
     Abstract base class for all package manager modules.
     
     All methods should return data or raise exceptions.
+    
+    Attributes:
+        name (str): The name of the package manager.
     """
 
     @property
@@ -58,8 +67,11 @@ class PackageManager(ABC):
         """
         Install the specified packages.
         
+        Args:
+            packages: List of package names or specs to install.
+
         Raises:
-            CommandError: If installation fails
+            CommandError: If installation fails.
         """
         pass
 
@@ -68,8 +80,11 @@ class PackageManager(ABC):
         """
         Uninstall the specified packages.
         
+        Args:
+            packages: List of package names or specs to uninstall.
+
         Raises:
-            CommandError: If uninstallation fails
+            CommandError: If uninstallation fails.
         """
         pass
 
@@ -78,8 +93,11 @@ class PackageManager(ABC):
         """
         Upgrade specified packages, or all if packages is None or empty.
         
+        Args:
+            packages: Optional list of packages to upgrade. If None, upgrade all.
+
         Raises:
-            CommandError: If upgrade fails
+            CommandError: If upgrade fails.
         """
         pass
 
@@ -87,6 +105,9 @@ class PackageManager(ABC):
     def list_packages(self) -> List["Package"]:
         """
         Return a list of installed packages.
+
+        Returns:
+            List[Package]: A list of installed packages.
         """
         pass
 
@@ -94,6 +115,12 @@ class PackageManager(ABC):
     def search(self, query: str) -> List["Package"]:
         """
         Search for packages matching the query and return results.
+
+        Args:
+            query: The search string.
+
+        Returns:
+            List[Package]: A list of matching packages.
         """
         pass
 

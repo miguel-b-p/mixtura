@@ -22,6 +22,12 @@ class PackageService:
     def search(self, query: str) -> List[Package]:
         """
         Search for packages across all available providers.
+
+        Args:
+            query: The search query string.
+
+        Returns:
+            List[Package]: A list of found packages.
         """
         available = get_available_providers()
         results: List[Package] = []
@@ -48,6 +54,12 @@ class PackageService:
         """
         Resolve a PackageSpec to concrete found Packages.
         If provider is specified, search there. If not, search all.
+
+        Args:
+            spec: The package specification to resolve.
+
+        Returns:
+            List[Package]: A list of matching packages.
         """
         if spec.provider:
             mgr = get_provider(spec.provider)
@@ -78,6 +90,12 @@ class PackageService:
         """
         Install packages based on specifications.
         Assumes specs are fully resolved (provider is set) or tries best effort.
+
+        Args:
+            specs: List of package specifications to install.
+
+        Returns:
+            List[OperationResult]: Results of the installation operations.
         """
         # Group by provider
         by_provider: Dict[str, List[str]] = {}
@@ -127,6 +145,12 @@ class PackageService:
     def remove(self, specs: List[PackageSpec]) -> List[OperationResult]:
         """
         Remove packages.
+
+        Args:
+            specs: List of package specifications to remove.
+
+        Returns:
+            List[OperationResult]: Results of the removal operations.
         """
         by_provider: Dict[str, List[str]] = {}
         results: List[OperationResult] = []
@@ -164,6 +188,12 @@ class PackageService:
     def upgrade(self, specs: Optional[List[PackageSpec]] = None) -> List[OperationResult]:
         """
         Upgrade packages. If specs is None, upgrade all providers.
+
+        Args:
+            specs: Optional list of packages/providers to upgrade. If None, upgrades all.
+
+        Returns:
+            List[OperationResult]: Results of the upgrade operations.
         """
         results: List[OperationResult] = []
         tasks: List[Tuple[PackageManager, Optional[List[str]]]] = []

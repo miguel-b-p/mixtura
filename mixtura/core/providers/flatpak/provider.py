@@ -26,8 +26,11 @@ class FlatpakProvider(PackageManager):
         """
         Install packages via Flatpak.
         
+        Args:
+            packages: List of packages to install.
+
         Raises:
-            CommandError: If installation fails
+            CommandError: If installation fails.
         """
         run(["flatpak", "install", "--system", "-y"] + packages)
 
@@ -36,8 +39,11 @@ class FlatpakProvider(PackageManager):
         """
         Remove Flatpak packages.
         
+        Args:
+            packages: List of packages to remove.
+
         Raises:
-            CommandError: If uninstall fails
+            CommandError: If uninstall fails.
         """
         for pkg in packages:
             run(["flatpak", "uninstall", pkg])
@@ -47,8 +53,11 @@ class FlatpakProvider(PackageManager):
         """
         Upgrade Flatpak packages.
         
+        Args:
+            packages: Optional list of packages to upgrade.
+
         Raises:
-            CommandError: If upgrade fails
+            CommandError: If upgrade fails.
         """
         if not packages:
             run(["flatpak", "update", "--system", "-y"])
@@ -56,7 +65,12 @@ class FlatpakProvider(PackageManager):
             run(["flatpak", "update", "--system", "-y"] + packages)
 
     def list_packages(self) -> List[Package]:
-        """Return list of installed Flatpak apps."""
+        """
+        Return list of installed Flatpak apps.
+
+        Returns:
+            List[Package]: Installed Flatpak packages.
+        """
         if not self.is_available():
             return []
             
@@ -83,7 +97,15 @@ class FlatpakProvider(PackageManager):
             return []
 
     def search(self, query: str) -> List[Package]:
-        """Search for packages in Flathub."""
+        """
+        Search for packages in Flathub.
+
+        Args:
+            query: The search query.
+
+        Returns:
+            List[Package]: Found packages.
+        """
         if not self.is_available():
             return []
         
@@ -143,6 +165,6 @@ class FlatpakProvider(PackageManager):
         Remove unused Flatpak packages and data.
         
         Raises:
-            CommandError: If cleanup fails
+            CommandError: If cleanup fails.
         """
         run(["flatpak", "uninstall", "--unused", "-y"])

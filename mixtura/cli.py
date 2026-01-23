@@ -54,6 +54,10 @@ def main(
     [bold #c8a0ff]Mixtura[/bold #c8a0ff] - Mixed together. Running everywhere.
     
     A unified package manager CLI that supports [bold]Nix[/bold], [bold]Flatpak[/bold], and [bold]Homebrew[/bold].
+
+    Args:
+        ctx: Typer context.
+        version: Flag to show version and exit.
     """
     # Check for updates at startup
     check_for_updates()
@@ -83,6 +87,11 @@ def add(
     
     Use [bold]provider#package[/bold] syntax to specify a provider explicitly.
     Without a prefix, Mixtura searches all providers and asks you to choose.
+
+    Args:
+        packages: List of packages to install.
+        yes: Auto-select if only one high-confidence result found.
+        show_all: Show all search results instead of filtering fuzzy matches.
     """
     print_logo()
     
@@ -173,6 +182,11 @@ def remove(
 ) -> None:
     """
     [#ff6ec7]Remove[/#ff6ec7] installed packages.
+
+    Args:
+        packages: List of packages to remove.
+        yes: Auto-confirm actions.
+        show_all: Show all matches instead of filtering.
     """
     print_logo()
     params_for_removal: List[PackageSpec] = []
@@ -245,6 +259,9 @@ def upgrade(
 ) -> None:
     """
     [#64c8ff]Upgrade[/#64c8ff] installed packages.
+
+    Args:
+        packages: Optional list of packages or providers (e.g. 'nixpkgs') to upgrade.
     """
     print_logo()
     specs = []
@@ -271,6 +288,9 @@ def list_packages(
 ) -> None:
     """
     [#64c8ff]List[/#64c8ff] installed packages.
+
+    Args:
+        provider: Optional provider name to filter by.
     """
     print_logo()
     
@@ -312,6 +332,10 @@ def search(
 ) -> None:
     """
     [#d2a064]Search[/#d2a064] for packages across all providers.
+
+    Args:
+        query: Search terms.
+        show_all: Show all results instead of filtering.
     """
     print_logo()
     
@@ -344,6 +368,9 @@ def clean(
 ) -> None:
     """
     [#d2a064]Clean[/#d2a064] up unused packages.
+
+    Args:
+        modules: Specific providers to clean. If empty, cleans all.
     """
     print_logo()
     
