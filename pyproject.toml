@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mixtura"
-version = "1.25"
+version = "1.26"
 description = "Mixed together. Running everywhere."
 authors = [
   { name = "Miguel Batista Pinotti", email = "miguelpinotty@gmail.com" },
