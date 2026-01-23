@@ -4,7 +4,7 @@ Package providers for Mixtura.
 Explicit loading of all available package manager providers.
 """
 
-from typing import Dict, TYPE_CHECKING
+from typing import Dict, TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from mixtura.core.providers.base import PackageManager
@@ -54,7 +54,7 @@ def get_all_providers() -> Dict[str, "PackageManager"]:
     return _providers_cache.copy()
 
 
-def get_provider(name: str) -> "PackageManager":
+def get_provider(name: str) -> Optional["PackageManager"]:
     """
     Get a specific provider by name.
     

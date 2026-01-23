@@ -8,7 +8,7 @@ Cache files are stored in $HOME/mixtura/cache/.
 import json
 import time
 from pathlib import Path
-from typing import List, Optional, Any, Dict
+from typing import List, Optional, Any, Dict, cast
 
 from mixtura.core.package import Package
 
@@ -45,7 +45,7 @@ class SearchCache:
             return {}
         try:
             with open(self.cache_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                return cast(Dict[str, Dict[str, Any]], json.load(f))
         except (json.JSONDecodeError, IOError):
             return {}
     
@@ -59,7 +59,7 @@ class SearchCache:
     
     def _serialize_results(self, results: List[Package]) -> List[Dict[str, Any]]:
         """Convert Package objects to JSON-serializable dicts."""
-        return [pkg.to_dict() if hasattr(pkg, 'to_dict') else pkg for pkg in results]
+        return [pkg.to_dict() for pkg in results]
     
     def _deserialize_results(self, data: List[Dict[str, Any]]) -> List[Package]:
         """Convert dicts back to Package objects."""

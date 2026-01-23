@@ -8,7 +8,7 @@ import shutil
 import json
 import sys
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from mixtura.core.providers.base import PackageManager, require_availability
 from mixtura.core.package import Package
@@ -237,7 +237,7 @@ class NixProvider(PackageManager):
                 except Exception:
                     return "unknown"
 
-            def _extract_version(element_details: dict, store_paths: List[str]) -> str:
+            def _extract_version(element_details: Dict[str, Any], store_paths: List[str]) -> str:
                 """
                 Extract version from Nix profile element details.
                 

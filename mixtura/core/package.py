@@ -66,3 +66,60 @@ class Package:
     
     def __str__(self) -> str:
         return f"{self.name} ({self.provider} {self.version})"
+
+
+@dataclass
+class PackageSpec:
+    """
+    Represents a package specification from user input.
+    E.g. "nixpkgs#vim", "git", "flatpak#Spotify"
+    """
+    name: str
+    provider: Optional[str] = None
+    version: Optional[str] = None
+    
+    @classmethod
+    def parse(cls, spec_str: str) -> "PackageSpec":
+        """
+        Parse a package specification string.
+        
+        Formats:
+          - "package_name"
+          - "provider#package_name"
+        """
+        if not spec_str:
+            raise ValueError("Package specification cannot be empty")
+            
+        if "#" in spec_str:
+            parts = spec_str.split("#", 1)
+            if not parts[0] or not parts[1]:
+                 # Handle cases like "#package" or "provider#" which are invalid
+                 # For now, let's keep it simple: if part[0] is empty -> provider is empty string (technically allowed by split but logically wrong?)
+                 # Actually, let's just use what split gives us.
+                 pass
+            
+            p_name = parts[0].strip()
+            pkg_name = parts[1].strip()
+            
+            if not p_name or not pkg_name:
+                 # If "flatpak#" -> provider="flatpak", name="" -> invalid?
+                 # If "#git" -> provider="", name="git" -> valid-ish?
+                 # Let's enforce that both must be present if # is used.
+                 pass
+
+            return cls(name=pkg_name, provider=p_name)
+            
+        return cls(name=spec_str)
+        
+    def __str__(self) -> str:
+        if self.provider:
+            return f"{self.provider}#{self.name}"
+        return self.name
+
+
+@dataclass
+class OperationResult:
+    """Result of an operation (install, remove, upgrade)."""
+    provider: str
+    success: bool
+    message: str

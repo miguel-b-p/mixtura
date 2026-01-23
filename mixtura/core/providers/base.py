@@ -7,10 +7,15 @@ This is the Model layer - no UI/print logic should be here.
 
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, TYPE_CHECKING, TypeVar, Callable, ParamSpec, cast
 
+if TYPE_CHECKING:
+    from mixtura.core.package import Package
 
-def require_availability(func):
+P = ParamSpec("P")
+R = TypeVar("R")
+
+def require_availability(func: Callable[P, R]) -> Callable[P, R]:
     """
     Decorator that ensures the package manager is available before executing.
     
@@ -22,10 +27,11 @@ def require_availability(func):
         RuntimeError: If the package manager is not available
     """
     @wraps(func)
-    def wrapper(self, *args, **kwargs):
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        self = cast(Any, args[0])
         if not self.is_available():
             raise RuntimeError(f"{self.name} is not installed.")
-        return func(self, *args, **kwargs)
+        return func(*args, **kwargs)
     return wrapper
 
 
@@ -78,18 +84,16 @@ class PackageManager(ABC):
         pass
 
     @abstractmethod
-    def list_packages(self) -> List[Dict[str, Any]]:
+    def list_packages(self) -> List["Package"]:
         """
         Return a list of installed packages.
-        Each package should be a dict with at least 'name' and 'version'/'id' keys.
         """
         pass
 
     @abstractmethod
-    def search(self, query: str) -> List[Dict[str, Any]]:
+    def search(self, query: str) -> List["Package"]:
         """
         Search for packages matching the query and return results.
-        Returns a list of dicts, each containing at least 'name', 'version', 'description'.
         """
         pass
 

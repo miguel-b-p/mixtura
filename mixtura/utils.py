@@ -9,7 +9,7 @@ import os
 import sys
 import subprocess
 import shlex
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 
 from mixtura.ui import console, log_error, log_info, log_warn
 
@@ -38,7 +38,7 @@ def run(
     check_warnings: bool = False,
     show_output: bool = True,
     cwd: Optional[str] = None,
-    env: Optional[dict] = None,
+    env: Optional[Dict[str, str]] = None,
     timeout: Optional[int] = None
 ) -> None:
     """
@@ -147,7 +147,7 @@ def run(
 def run_capture(
     cmd: List[str],
     cwd: Optional[str] = None,
-    env: Optional[dict] = None,
+    env: Optional[Dict[str, str]] = None,
     timeout: Optional[int] = None,
     check: bool = False
 ) -> Tuple[int, str, str]:

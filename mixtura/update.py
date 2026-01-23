@@ -16,12 +16,12 @@ import stat
 from mixtura.ui import console
 
 
-def is_nuitka_compiled():
+def is_nuitka_compiled() -> bool:
     """Detects if the application is running as a Nuitka compiled executable."""
     return "__compiled__" in globals() or getattr(sys, 'frozen', False) or hasattr(sys, '_MEIPASS')
 
 
-def check_for_updates():
+def check_for_updates() -> None:
     """Checks if there is a new version available by comparing versions."""
     is_compiled = is_nuitka_compiled()
     

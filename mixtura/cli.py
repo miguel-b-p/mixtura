@@ -11,9 +11,12 @@ from typing import List, Optional
 import typer
 from typing_extensions import Annotated
 
-from mixtura.core.orchestrator import Orchestrator
+from mixtura.core.service import PackageService
+from mixtura.core.package import PackageSpec, Package
 from mixtura.core.providers import get_all_providers, get_available_providers
-from mixtura.ui import console, print_logo, log_warn
+from mixtura.ui import console, print_logo, log_warn, log_info, log_task, log_error, log_success
+from mixtura.ui.display import display_package_list, display_installed_packages, display_operation_results
+from mixtura.ui.prompts import select_package
 from mixtura.update import check_for_updates
 
 # Create main Typer app with Rich markup support
@@ -26,11 +29,11 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 
-# Create orchestrator instance
-orchestrator = Orchestrator()
+# Create service instance (stateless business logic)
+service = PackageService()
 
 
-def version_callback(value: bool):
+def version_callback(value: bool) -> None:
     """Show version and exit."""
     if value:
         version_path = Path(__file__).parent / "VERSION"
@@ -46,7 +49,7 @@ def main(
         Optional[bool],
         typer.Option("--version", "-v", callback=version_callback, is_eager=True, help="Show version")
     ] = None,
-):
+) -> None:
     """
     [bold #c8a0ff]Mixtura[/bold #c8a0ff] - Mixed together. Running everywhere.
     
@@ -74,20 +77,83 @@ def add(
         bool,
         typer.Option("--all", "-a", help="Show all search results instead of filtering")
     ] = False,
-):
+) -> None:
     """
     [#78dcb4]Install[/#78dcb4] packages from Nix, Flatpak, or Homebrew.
     
     Use [bold]provider#package[/bold] syntax to specify a provider explicitly.
     Without a prefix, Mixtura searches all providers and asks you to choose.
-    
-    [dim]Examples:[/dim]
-      mixtura add git micro          [dim]# Search and select[/dim]
-      mixtura add nixpkgs#vim        [dim]# Install from Nix[/dim]
-      mixtura add flatpak#Spotify    [dim]# Install from Flatpak[/dim]
     """
     print_logo()
-    orchestrator.install_flow(packages, auto_confirm=yes, show_all=show_all)
+    
+    params_for_install: List[PackageSpec] = []
+    
+    for arg in packages:
+        # Handle comma-separated input if user does "git,vim"
+        items = [p.strip() for p in arg.split(',') if p.strip()]
+        
+        for item in items:
+            try:
+                # Parse user input
+                spec = PackageSpec.parse(item)
+                
+                # Case 1: Provider is explicit (e.g. "nixpkgs#vim")
+                if spec.provider:
+                    params_for_install.append(spec)
+                    continue
+                
+                # Case 2: Ambiguous (e.g. "vim") - Search and Prompt
+                log_task(f"Searching for '[bold]{spec.name}[/bold]' across all providers...")
+                search_results = service.search(spec.name)
+                
+                if not search_results:
+                    log_warn(f"No packages found for '{spec.name}'.")
+                    continue
+
+                # Filter results (simple exact match logic or show all)
+                filtered = search_results
+                if not show_all:
+                    exact = [p for p in search_results if p.name.lower() == spec.name.lower()]
+                    if exact:
+                        filtered = exact
+
+                # Auto-confirm or prompt
+                if yes and len(filtered) == 1:
+                    log_info(f"Auto-selecting: {filtered[0].name} ({filtered[0].provider})")
+                    selected_pkg = filtered[0]
+                else:
+                    display_package_list(filtered, f"Found matches for '{spec.name}'")
+                    # select_package returns List[Package] or None
+                    user_selection = select_package(filtered, "Select specific package to install")
+                    if not user_selection:
+                        continue
+                    selected_pkg = user_selection[0]
+                    # The prompt allows checking multiple. Let's support it.
+                    for p in user_selection:
+                         params_for_install.append(PackageSpec(name=p.id or p.name, provider=p.provider))
+                    continue # handled via loop
+
+                # Add single selection
+                params_for_install.append(PackageSpec(name=selected_pkg.id or selected_pkg.name, provider=selected_pkg.provider))
+
+            except ValueError as e:
+                log_error(f"Invalid package format '{item}': {e}")
+            except Exception as e:
+                log_error(f"Error processing '{item}': {e}")
+
+    if not params_for_install:
+        log_warn("No packages selected for installation.")
+        return
+
+    # Execute Installation
+    console.print()
+    log_task(f"Installing {len(params_for_install)} package(s)...")
+    op_results = service.install(params_for_install)
+    
+    # Convert OperationResult to tuple format for display_operation_results
+    # display expects: (name, success, message)
+    display_results = [(r.provider, r.success, r.message) for r in op_results]
+    display_operation_results(display_results, "Installation finished.", "Installation completed with errors.")
 
 
 @app.command()
@@ -104,15 +170,70 @@ def remove(
         bool,
         typer.Option("--all", "-a", help="Show all matches instead of filtering")
     ] = False,
-):
+) -> None:
     """
     [#ff6ec7]Remove[/#ff6ec7] installed packages.
-    
-    Searches installed packages and prompts for selection.
-    Use [bold]provider#package[/bold] to remove directly without search.
     """
     print_logo()
-    orchestrator.remove_flow(packages, auto_confirm=yes, show_all=show_all)
+    params_for_removal: List[PackageSpec] = []
+    
+    for arg in packages:
+        items = [p.strip() for p in arg.split(',') if p.strip()]
+        for item in items:
+            try:
+                spec = PackageSpec.parse(item)
+                
+                if spec.provider:
+                    params_for_removal.append(spec)
+                    continue
+                
+                # Search installed
+                log_task(f"Searching installed packages for '[bold]{spec.name}[/bold]'...")
+                # We need a way to list installed and filter? Or just search?
+                # Service layer doesn't have "search_installed" explicitly efficiently, 
+                # but list_packages is per provider.
+                # Let's iterate providers via service.
+                
+                matches = []
+                for provider_name in ["nixpkgs", "flatpak", "homebrew"]: # or get_available
+                    mgr = service.get_provider(provider_name)
+                    if mgr and mgr.is_available():
+                        # optimize: list only if needed? list is expensive.
+                        # Maybe we should assume user knows? Or implement search_installed in service?
+                        # For now, let's just create generic specs if 'yes' is explicit?
+                        # No, we must find where it is installed to remove it.
+                        pkgs = mgr.list_packages()
+                        for p in pkgs:
+                            if spec.name.lower() in p.name.lower():
+                                matches.append(p)
+                
+                if not matches:
+                    log_warn(f"No installed package found matching '{spec.name}'")
+                    continue
+                
+                # Prompt
+                selected: Optional[List[Package]] = matches
+                if not yes or len(matches) > 1:
+                    display_package_list(matches, f"Installed matches for '{spec.name}'")
+                    selected = select_package(matches, "Select packages to remove", allow_all=True)
+                
+                if selected:
+                     for p in selected:
+                         params_for_removal.append(PackageSpec(name=p.id or p.name, provider=p.provider))
+
+            except Exception as e:
+                log_error(f"Error processing '{item}': {e}")
+
+    if not params_for_removal:
+        log_warn("No packages selected for removal.")
+        return
+
+    console.print()
+    log_task(f"Removing {len(params_for_removal)} package(s)...")
+    results = service.remove(params_for_removal)
+    
+    display_results = [(r.provider, r.success, r.message) for r in results]
+    display_operation_results(display_results, "Removal finished.", "Removal completed with errors.")
 
 
 @app.command()
@@ -121,20 +242,24 @@ def upgrade(
         Optional[List[str]],
         typer.Argument(help="Packages or providers to upgrade. Empty = upgrade all.")
     ] = None,
-):
+) -> None:
     """
     [#64c8ff]Upgrade[/#64c8ff] installed packages.
-    
-    Without arguments, upgrades all packages from all providers.
-    Specify provider names (nixpkgs, flatpak) to upgrade a specific provider.
-    
-    [dim]Examples:[/dim]
-      mixtura upgrade              [dim]# Upgrade everything[/dim]
-      mixtura upgrade nixpkgs      [dim]# Upgrade Nix packages only[/dim]
-      mixtura upgrade flatpak      [dim]# Upgrade Flatpak packages only[/dim]
     """
     print_logo()
-    orchestrator.upgrade_flow(packages or [])
+    specs = []
+    if packages:
+        for arg in packages:
+            try:
+                specs.append(PackageSpec.parse(arg))
+            except ValueError:
+                specs.append(PackageSpec(name=arg)) # treat as provider name or package
+
+    log_task("Running upgrade...")
+    results = service.upgrade(specs if specs else None)
+    
+    display_results = [(r.provider, r.success, r.message) for r in results]
+    display_operation_results(display_results, "Upgrade finished.", "Upgrade completed with errors.")
 
 
 @app.command("list")
@@ -143,14 +268,35 @@ def list_packages(
         Optional[str],
         typer.Argument(help="Filter by provider: nixpkgs, flatpak, or homebrew")
     ] = None,
-):
+) -> None:
     """
     [#64c8ff]List[/#64c8ff] installed packages.
-    
-    Shows packages from all available providers, or filter by a specific one.
     """
     print_logo()
-    orchestrator.list_flow(provider)
+    
+    mgrs = []
+    if provider:
+        mgr = service.get_provider(provider)
+        if mgr:
+            mgrs.append(mgr)
+        else:
+            log_warn(f"Unknown provider '{provider}'")
+            return
+    else:
+        # Get all available
+        all_provs = get_available_providers()
+        mgrs = list(all_provs.values())
+        
+    if not mgrs:
+        log_warn("No available package managers found.")
+        return
+        
+    for mgr in mgrs:
+        if not mgr.is_available():
+            continue
+        log_task(f"Fetching packages from {mgr.name}...")
+        pkgs = mgr.list_packages()
+        display_installed_packages(pkgs, mgr.name)
 
 
 @app.command()
@@ -163,18 +309,30 @@ def search(
         bool,
         typer.Option("--all", "-a", help="Show all results instead of filtering")
     ] = False,
-):
+) -> None:
     """
     [#d2a064]Search[/#d2a064] for packages across all providers.
-    
-    Use [bold]provider#query[/bold] to search a specific provider.
-    
-    [dim]Examples:[/dim]
-      mixtura search git           [dim]# Search all providers[/dim]
-      mixtura search flatpak#code  [dim]# Search Flatpak only[/dim]
     """
     print_logo()
-    orchestrator.search_flow(query, show_all=show_all)
+    
+    for q in query:
+        # Simple search logic
+        spec = PackageSpec.parse(q)
+        # Search all or specific
+        if spec.provider:
+            mgr = service.get_provider(spec.provider)
+            if mgr:
+                 results = mgr.search(spec.name)
+            else:
+                 results = []
+        else:
+            results = service.search(spec.name)
+            
+        if not results:
+            log_warn(f"No results for '{q}'")
+            continue
+            
+        display_package_list(results, f"Matches for '{q}'")
 
 
 @app.command()
@@ -183,23 +341,41 @@ def clean(
         Optional[List[str]],
         typer.Argument(help="Specific providers to clean. Empty = clean all.")
     ] = None,
-):
+) -> None:
     """
-    [#d2a064]Clean[/#d2a064] up unused packages and cached data.
-    
-    Performs garbage collection on package managers to free up disk space.
-    
-    [dim]Examples:[/dim]
-      mixtura clean                [dim]# Clean all providers[/dim]
-      mixtura clean nixpkgs        [dim]# Clean Nix only[/dim]
+    [#d2a064]Clean[/#d2a064] up unused packages.
     """
     print_logo()
-    orchestrator.clean_flow(modules or [])
+    
+    available = get_available_providers()
+    target_provers = []
+    
+    if modules:
+        for m in modules:
+            if m in available:
+                target_provers.append(available[m])
+            else:
+                log_warn(f"Provider '{m}' not available.")
+    else:
+        target_provers = list(available.values())
+        
+    if not target_provers:
+        return
+
+    results = []
+    for mgr in target_provers:
+        log_task(f"Cleaning {mgr.name}...")
+        try:
+            mgr.clean()
+            results.append((mgr.name, True, "Cleaned"))
+        except Exception as e:
+            results.append((mgr.name, False, str(e)))
+            
+    display_operation_results(results, "Clean finished.")
 
 
-# Add info command to show available providers
 @app.command()
-def info():
+def info() -> None:
     """
     Show information about available package managers.
     """
@@ -217,10 +393,6 @@ def info():
             console.print(f"  [dim]○ {name} (not installed)[/dim]")
     
     console.print()
-    
-    if not available:
-        log_warn("No package managers are available. Install nix, flatpak, or brew.")
-
 
 if __name__ == "__main__":
     app()

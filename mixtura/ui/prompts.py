@@ -4,7 +4,7 @@ Interactive prompts for Mixtura using Rich.
 Handles user input for package selection and confirmations.
 """
 
-from typing import List, Optional, Union, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 
 from rich.prompt import Prompt, Confirm
 
@@ -15,11 +15,11 @@ if TYPE_CHECKING:
 
 
 def select_package(
-    packages: List[Union["Package", dict]],
+    packages: List["Package"],
     prompt: str = "Select a package",
     allow_all: bool = False,
     allow_skip: bool = True
-) -> Optional[List[Union["Package", dict]]]:
+) -> Optional[List["Package"]]:
     """
     Interactive menu for package selection using Rich.
     
