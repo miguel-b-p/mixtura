@@ -1,6 +1,8 @@
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple, Dict, Callable, Any, TypeVar
+
+from mixtura.core.concurrency import global_provider_lock
 
 from mixtura.core.package import Package, PackageSpec, OperationResult
 from mixtura.core.providers import get_all_providers, get_available_providers, get_provider
@@ -13,8 +15,16 @@ class PackageService:
     Handles orchestration of providers without UI coupling.
     """
     
+    T = TypeVar("T")
+
     def __init__(self) -> None:
         self._providers = get_all_providers()
+
+    @staticmethod
+    def _run_with_lock(func: Callable[..., "PackageService.T"], *args: Any, **kwargs: Any) -> "PackageService.T":
+        """Helper to run a function under shared provider lock."""
+        with global_provider_lock.shared():
+            return func(*args, **kwargs)
 
     def get_provider(self, name: str) -> Optional[PackageManager]:
         return get_provider(name)
@@ -35,7 +45,7 @@ class PackageService:
         # Parallel search
         with ThreadPoolExecutor(max_workers=max(1, len(available))) as executor:
             futures = {
-                executor.submit(mgr.search, query): mgr 
+                executor.submit(self._run_with_lock, mgr.search, query): mgr 
                 for mgr in available.values()
             }
             
@@ -123,7 +133,7 @@ class PackageService:
                     results.append(OperationResult(prov_name, False, msg))
                     continue
                     
-                futures[executor.submit(mgr.install, pkg_names)] = (prov_name, pkg_names)
+                futures[executor.submit(self._run_with_lock, mgr.install, pkg_names)] = (prov_name, pkg_names)
                 
             for future in as_completed(futures):
                 prov_name, pkg_names = futures[future]
@@ -174,7 +184,7 @@ class PackageService:
                 if not mgr or not mgr.is_available():
                     results.append(OperationResult(prov_name, False, "Provider unavailable"))
                     continue
-                futures[executor.submit(mgr.uninstall, pkg_names)] = prov_name
+                futures[executor.submit(self._run_with_lock, mgr.uninstall, pkg_names)] = prov_name
                 
             for future in as_completed(futures):
                 prov_name = futures[future]
@@ -224,7 +234,7 @@ class PackageService:
         with ThreadPoolExecutor() as executor:
             futures = {}
             for mgr, pkg_names in tasks:
-                futures[executor.submit(mgr.upgrade, pkg_names)] = mgr
+                futures[executor.submit(self._run_with_lock, mgr.upgrade, pkg_names)] = mgr
                 
             for future in as_completed(futures):
                 mgr = futures[future]

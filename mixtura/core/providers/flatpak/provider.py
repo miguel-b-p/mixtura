@@ -32,7 +32,10 @@ class FlatpakProvider(PackageManager):
         Raises:
             CommandError: If installation fails.
         """
-        run(["flatpak", "install", "--system", "-y"] + packages)
+        # Flatpak may prompt for remote selection (interactive) even with -y.
+        # We request exclusive mode to pause other providers and prevent output mixing/input races.
+        with self.exclusive_mode():
+            run(["flatpak", "install", "-y"] + packages)
 
     @require_availability
     def uninstall(self, packages: List[str]) -> None:
@@ -60,9 +63,9 @@ class FlatpakProvider(PackageManager):
             CommandError: If upgrade fails.
         """
         if not packages:
-            run(["flatpak", "update", "--system", "-y"])
+            run(["flatpak", "update", "-y"])
         else:
-            run(["flatpak", "update", "--system", "-y"] + packages)
+            run(["flatpak", "update", "-y"] + packages)
 
     def list_packages(self) -> List[Package]:
         """

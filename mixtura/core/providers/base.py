@@ -7,7 +7,10 @@ This is the Model layer - no UI/print logic should be here.
 
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import List, Optional, Any, TYPE_CHECKING, TypeVar, Callable, ParamSpec, cast
+from typing import List, Optional, Any, TYPE_CHECKING, TypeVar, Callable, ParamSpec, cast, Generator
+from contextlib import contextmanager
+
+from mixtura.core.concurrency import global_provider_lock
 
 if TYPE_CHECKING:
     from mixtura.core.package import Package
@@ -134,3 +137,18 @@ class PackageManager(ABC):
             CommandError: If cleanup fails
         """
         pass
+
+    @contextmanager
+    def exclusive_mode(self) -> Generator[None, None, None]:
+        """
+        Request exclusive execution mode.
+        
+        When entered, this pauses all other providers currently running operations
+        via the PackageService, and prevents new operations from starting
+        until this context exits.
+        
+        Use this for critical sections where race conditions might occur,
+        like acquiring global system locks (e.g., dpkg lock, yum lock).
+        """
+        with global_provider_lock.exclusive():
+            yield
