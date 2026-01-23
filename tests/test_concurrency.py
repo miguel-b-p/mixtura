@@ -2,7 +2,7 @@
 import threading
 import time
 import unittest
-from concurrent.futures import ThreadPoolExecutor
+
 
 from mixtura.core.concurrency import ProviderLock
 
@@ -98,7 +98,6 @@ class TestProviderLock(unittest.TestCase):
         #    So A is blocked until B moves on.
         
         events = []
-        b_can_finish = threading.Event()
         
         def thread_a():
             with self.lock.shared():

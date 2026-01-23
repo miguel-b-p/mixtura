@@ -8,7 +8,7 @@ a provider to request exclusive access (exclusive mode), effectively pausing oth
 
 import threading
 from contextlib import contextmanager
-from typing import Generator, Set, Dict
+from typing import Generator, Dict
 
 
 class ProviderLock:
