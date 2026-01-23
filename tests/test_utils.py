@@ -109,10 +109,11 @@ class TestRunCapture:
             stderr=""
         )
         
-        run_capture(["cmd"], cwd="/tmp")
+        import tempfile
+        run_capture(["cmd"], cwd=tempfile.gettempdir())
         
         call_kwargs = mock_run.call_args.kwargs
-        assert call_kwargs.get("cwd") == "/tmp"
+        assert call_kwargs.get("cwd") == tempfile.gettempdir()
 
 
 class TestRun:

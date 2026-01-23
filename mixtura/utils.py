@@ -101,7 +101,8 @@ def run(
                 text=True,
                 cwd=cwd,
                 env=run_env,
-                timeout=timeout
+                timeout=timeout,
+                shell=False
             )
             
             if show_output:
@@ -122,7 +123,8 @@ def run(
                 check=True,
                 cwd=cwd,
                 env=run_env,
-                timeout=timeout
+                timeout=timeout,
+                shell=False
             )
 
     except subprocess.TimeoutExpired:
@@ -202,7 +204,8 @@ def run_capture(
             text=True,
             cwd=cwd,
             env=run_env,
-            timeout=timeout
+            timeout=timeout,
+            shell=False
         )
         
         if check and result.returncode != 0:

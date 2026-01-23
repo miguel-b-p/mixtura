@@ -7,7 +7,7 @@ This is the Model layer - no UI/print logic should be here.
 
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import List, Optional, Dict, Any, TYPE_CHECKING, TypeVar, Callable, ParamSpec, cast
+from typing import List, Optional, Any, TYPE_CHECKING, TypeVar, Callable, ParamSpec, cast
 
 if TYPE_CHECKING:
     from mixtura.core.package import Package

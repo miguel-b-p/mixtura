@@ -89,7 +89,8 @@ class TestCheckForUpdates:
     @patch('urllib.request.urlopen')
     def test_check_for_updates_handles_network_error(self, mock_urlopen):
         """Test check_for_updates handles network errors gracefully."""
-        mock_urlopen.side_effect = Exception("Network error")
+        from urllib.error import URLError
+        mock_urlopen.side_effect = URLError(reason="Network error")
         
         # Should not crash on network errors
         check_for_updates()  # Should silently fail

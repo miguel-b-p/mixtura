@@ -14,7 +14,7 @@ from typing_extensions import Annotated
 from mixtura.core.service import PackageService
 from mixtura.core.package import PackageSpec, Package
 from mixtura.core.providers import get_all_providers, get_available_providers
-from mixtura.ui import console, print_logo, log_warn, log_info, log_task, log_error, log_success
+from mixtura.ui import console, print_logo, log_warn, log_info, log_task, log_error
 from mixtura.ui.display import display_package_list, display_installed_packages, display_operation_results
 from mixtura.ui.prompts import select_package
 from mixtura.update import check_for_updates

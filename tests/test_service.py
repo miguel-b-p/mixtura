@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from mixtura.core.service import PackageService
-from mixtura.core.package import Package, PackageSpec, OperationResult
+from mixtura.core.package import Package, PackageSpec
 
 class TestPackageService:
     @pytest.fixture

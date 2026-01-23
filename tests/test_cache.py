@@ -140,7 +140,7 @@ class TestSearchCacheEdgeCases:
             # Should not crash even if write fails
             try:
                 cache.set("query", packages)
-            except Exception:
+            except OSError:
                 pass  # Some implementations may raise, some may not
     
     def test_empty_results_cached(self):

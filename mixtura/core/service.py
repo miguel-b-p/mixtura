@@ -1,11 +1,11 @@
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Optional, Tuple, Dict, Union
+from typing import List, Optional, Tuple, Dict
 
 from mixtura.core.package import Package, PackageSpec, OperationResult
 from mixtura.core.providers import get_all_providers, get_available_providers, get_provider
 from mixtura.core.providers.base import PackageManager
-from mixtura.utils import CommandError
+
 
 class PackageService:
     """
@@ -46,6 +46,7 @@ class PackageService:
                     results.extend(future.result())
                 except Exception:
                     # Log internally if we had a logger, or ignore
+                    # Preventing thread crash from affecting main process
                     pass
                     
         return results

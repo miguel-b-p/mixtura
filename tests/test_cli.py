@@ -4,7 +4,7 @@ Tests for Mixtura CLI commands.
 Tests all CLI commands and their options using Typer's CliRunner.
 """
 
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 import pytest
 from mixtura.cli import app
 from mixtura.core.package import Package, OperationResult
@@ -60,7 +60,7 @@ class TestAddCommand:
         
         # We also need to mock select_package or use --yes, otherwise prompt appears
         with patch('mixtura.cli.select_package', return_value=[pkg]):
-            result = cli_runner.invoke(app, ["add", "git"])
+            cli_runner.invoke(app, ["add", "git"])
         
         mock_service.search.assert_called_with("git")
         mock_service.install.assert_called_once()
@@ -73,7 +73,7 @@ class TestAddCommand:
         """Test add with nixpkgs#vim syntax."""
         mock_service.install.return_value = [OperationResult("nixpkgs", True, "Success")]
         
-        result = cli_runner.invoke(app, ["add", "nixpkgs#vim"])
+        cli_runner.invoke(app, ["add", "nixpkgs#vim"])
         
         # Should not search, direct install
         mock_service.search.assert_not_called()
@@ -114,7 +114,7 @@ class TestRemoveCommand:
         
         # We need to explicitly mock select_package for this test too, unless --yes
         with patch('mixtura.cli.select_package', return_value=[pkg]):
-             result = cli_runner.invoke(app, ["remove", "git"])
+             cli_runner.invoke(app, ["remove", "git"])
         
         mock_service.remove.assert_called_once()
         args = mock_service.remove.call_args[0][0]

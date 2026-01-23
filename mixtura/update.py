@@ -42,6 +42,9 @@ def check_for_updates() -> None:
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
 
+        if not github_version_url.startswith("https://"):
+             raise ValueError("Update URL must be HTTPS")
+
         req = urllib.request.Request(github_version_url)
         with urllib.request.urlopen(req, context=ctx) as response:
             data = json.loads(response.read().decode())
@@ -109,7 +112,7 @@ def check_for_updates() -> None:
                  console.print("Update skipped.")
                  console.print()
             
-    except Exception:
+    except (urllib.error.URLError, json.JSONDecodeError, OSError, ValueError):
         # Intentionally silent: update check failures should not disrupt normal CLI usage.
         # Network errors, missing VERSION file, or API changes are non-critical.
         pass
