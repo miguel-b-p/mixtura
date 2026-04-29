@@ -7,6 +7,10 @@ on:
       - "**"
     paths:
       - "mixtura/**"
+      - "build/build.sh"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/compile.yaml"
   workflow_dispatch:
 
 jobs:
@@ -19,22 +23,28 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y patchelf gcc make
-          pip install nuitka
+          uv sync --extra build --locked
 
       - name: Compile
         run: |
           chmod +x build/build.sh
-          ./build/build.sh
+          uv run --extra build ./build/build.sh
+
+      - name: Update lockfile
+        run: uv lock
 
       - name: Commit and Push
         run: |
           VERSION=$(cat bin/VERSION)
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add bin/mixtura bin/HASH bin/VERSION mixtura/VERSION pyproject.toml flake.nix
+          git add bin/mixtura bin/HASH bin/VERSION mixtura/VERSION pyproject.toml uv.lock flake.nix
           git commit -m "chore: update compiled binary to v${VERSION} [skip ci]" || echo "No changes to commit"
           git push

@@ -4,10 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mixtura"
-version = "1.29"
+version = "1.30"
 description = "Mixed together. Running everywhere."
 authors = [
   { name = "Miguel Batista Pinotti", email = "miguelpinotty@gmail.com" },
+  { name = "Leoni Frazão de Oliveira, email = "leoni.frazao.oliveira@gmail.com" }
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -18,13 +19,21 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
 ]
 dependencies = [
-    "typer[all]>=0.9.0",
+    "rich>=13.0.0",
+    "shellingham>=1.5.0",
+    "typer>=0.9.0",
+    "typing-extensions>=4.13.2",
 ]
 
 [project.optional-dependencies]
 test = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
+]
+build = [
+    "nuitka[onefile]>=4.0.0",
+    "patchelf>=0.17.0.0",
+    "zstandard>=0.22.0",
 ]
 
 [project.scripts]
@@ -35,3 +44,6 @@ mix = "mixtura.cli:app"
 where = ["."]
 include = ["mixtura*"]
 namespaces = false
+
+[tool.setuptools.package-data]
+mixtura = ["VERSION"]
