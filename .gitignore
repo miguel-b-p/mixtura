@@ -1,18 +1,13 @@
 # ignore env files.
 .flox
 .env
-.venv
 
 # ignore flake.lock
 flake.lock
 
-# ignore build files
-*.build
-*.dist
-*.onefile-build
+# ignore local/editor files
+.DS_Store
 
-# ignore python cache files.
-__pycache__
-*.egg-info
-build/lib
-bdist.linux*
+# ignore Go build artifacts
+coverage.out
+dist/

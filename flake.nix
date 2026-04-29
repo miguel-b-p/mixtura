@@ -18,33 +18,31 @@
         pkgs = nixpkgs.legacyPackages.${system};
       in
       {
-        packages.default = pkgs.python3Packages.buildPythonApplication {
+        packages.default = pkgs.buildGoModule {
           pname = "mixtura";
           version = "1.31";
           pyproject = true;
 
-          src = ./.;
+          src = ./src;
+          vendorHash = null;
 
-          nativeBuildInputs = [
-            pkgs.python3Packages.setuptools
-          ];
-
-          propagatedBuildInputs = [
-            pkgs.python3Packages.typer
-          ];
+          postInstall = ''
+            ln -s $out/bin/mixtura $out/bin/mix
+          '';
 
           meta = with pkgs.lib; {
             description = "Mixed together. Running everywhere.";
             license = licenses.asl20;
             maintainers = with maintainers; [ ];
+            mainProgram = "mixtura";
           };
         };
 
         devShells.default = pkgs.mkShell {
           packages = [
-            self.packages.${system}.default
-            pkgs.python3
-            pkgs.python3Packages.setuptools
+            pkgs.go
+            pkgs.gotools
+            pkgs.golangci-lint
           ];
         };
       }

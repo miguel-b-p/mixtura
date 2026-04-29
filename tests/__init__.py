@@ -1,1 +1,0 @@
-# Mixtura tests package

@@ -1,1 +1,0 @@
-# Nixpkgs provider package

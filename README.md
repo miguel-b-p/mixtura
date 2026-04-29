@@ -24,6 +24,16 @@ It reflects the project's core philosophy: it **mixes** and unifies disparate pa
 
 To install Mixtura, it's recommended you to see the [Installation Guide](docs/Installation.md).
 
+## Development
+
+Mixtura is implemented in Go. The source lives in `src/`.
+
+```bash
+make test
+make build
+bin/mixtura --version
+```
+
 ## Usage
 
 The syntax is designed to be intuitive and predictable. The command is `mixtura` or `mix`.

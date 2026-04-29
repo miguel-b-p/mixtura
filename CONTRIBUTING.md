@@ -1,33 +1,43 @@
 # Contributing to Mixtura
 
-First off, thank you for considering contributing to Mixtura! It's people like you that make open source projects great.
+Thank you for considering a contribution.
 
 ## How to Contribute
 
 ### Reporting Bugs & Suggestions
 
-- **Check existing issues** to see if your problem or idea has already been reported.
-- **Open a new issue** with a clear title and detailed description. For bugs, include steps to reproduce. For features, explain the benefit.
+- Check existing issues to see if your problem or idea has already been reported.
+- Open a new issue with a clear title and detailed description. For bugs, include steps to reproduce. For features, explain the benefit.
 
 ### Pull Requests
 
-1. **Fork the repository** and create a feature branch from `master`.
-2. **Make your changes**. Keep your code clean, readable, and consistent with the existing style.
-3. **Test your work**. Ensure your changes work as expected and don't introduce new bugs.
-4. **Commit with clarity**. Write clear, descriptive commit messages.
-5. **Submit a Pull Request**. Provide a summary of your changes in the PR description.
+1. Fork the repository and create a feature branch from `master`.
+2. Make your changes. Keep code readable and consistent with the existing Go layout.
+3. Test your work with `go test ./...` from `src/`.
+4. Commit with a clear message.
+5. Submit a Pull Request with a summary of the behavior changed.
 
 ## Development
 
-Mixtura is built with Python. Please ensure you have a working Python environment.
+Mixtura is built with Go.
 
-- The source code is located in the `src/` directory.
-- Refer to `README.md` for installation and usage instructions.
+```bash
+cd src
+go test ./...
+./build.sh
+```
+
+The source code lives in `src/`:
+
+- `internal/core`: domain models, provider interface, registry, and service orchestration.
+- `internal/provider/*`: package-manager backends.
+- `internal/system`: command execution, cache, updates, and error normalization.
+- `internal/ui`: terminal rendering, prompts, and spinner.
 
 ## Code of Conduct
 
-This project adheres to a [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
+This project adheres to a [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold it.
 
 ## License
 
-By contributing to Mixtura, you agree that your contributions will be licensed under its [Apache License 2.0](LICENSE).
+By contributing to Mixtura, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE).
