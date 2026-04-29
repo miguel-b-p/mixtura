@@ -8,7 +8,7 @@ version = "1.30"
 description = "Mixed together. Running everywhere."
 authors = [
   { name = "Miguel Batista Pinotti", email = "miguelpinotty@gmail.com" },
-  { name = "Leoni Frazão de Oliveira, email = "leoni.frazao.oliveira@gmail.com" }
+  { name = "Leoni Frazão de Oliveira", email = "leoni.frazao.oliveira@gmail.com" }
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
