@@ -1,12 +1,16 @@
 package ui
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"mixtura/internal/core"
 )
+
+const PackagePageSize = 10
 
 const logo = `
     ▙▗▌ ▗      ▐
@@ -66,15 +70,65 @@ func isTerminal(file *os.File) bool {
 func DisplayPackageList(packages []core.Package, title string) {
 	fmt.Println(title)
 	for i, pkg := range packages {
-		extra := pkg.Version
-		if extra == "" || extra == "unknown" {
-			extra = pkg.ID
+		printPackage(i+1, pkg)
+	}
+}
+
+func DisplayPackageListPaginated(packages []core.Package, title string) {
+	if len(packages) <= PackagePageSize {
+		DisplayPackageList(packages, title)
+		return
+	}
+	reader := bufio.NewReader(os.Stdin)
+	for page := 0; ; page++ {
+		start, end := PackagePageBounds(len(packages), page, PackagePageSize)
+		printPackagePage(packages, title, start, end)
+		if end >= len(packages) {
+			return
 		}
-		if pkg.Description != "" {
-			fmt.Printf(" %d. %s (%s %s) - %s\n", i+1, pkg.Name, pkg.Provider, extra, pkg.Description)
-		} else {
-			fmt.Printf(" %d. %s (%s %s)\n", i+1, pkg.Name, pkg.Provider, extra)
+		if !isTerminal(os.Stdin) || !isTerminal(os.Stdout) {
+			fmt.Printf("Showing first %d of %d results. Run in a terminal to page through all results.\n", end, len(packages))
+			return
 		}
+		fmt.Print("Press Enter for more, or q to stop: ")
+		raw, err := reader.ReadString('\n')
+		if err != nil || strings.EqualFold(strings.TrimSpace(raw), "q") {
+			return
+		}
+	}
+}
+
+func PackagePageBounds(total, page, pageSize int) (int, int) {
+	if pageSize <= 0 {
+		pageSize = PackagePageSize
+	}
+	start := page * pageSize
+	if start > total {
+		start = total
+	}
+	end := start + pageSize
+	if end > total {
+		end = total
+	}
+	return start, end
+}
+
+func printPackagePage(packages []core.Package, title string, start, end int) {
+	fmt.Printf("%s (%d-%d of %d)\n", title, start+1, end, len(packages))
+	for i := start; i < end; i++ {
+		printPackage(i+1, packages[i])
+	}
+}
+
+func printPackage(index int, pkg core.Package) {
+	extra := pkg.Version
+	if extra == "" || extra == "unknown" {
+		extra = pkg.ID
+	}
+	if pkg.Description != "" {
+		fmt.Printf(" %d. %s (%s %s) - %s\n", index, pkg.Name, pkg.Provider, extra, pkg.Description)
+	} else {
+		fmt.Printf(" %d. %s (%s %s)\n", index, pkg.Name, pkg.Provider, extra)
 	}
 }
 

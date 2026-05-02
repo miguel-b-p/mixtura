@@ -258,7 +258,7 @@ func cmdSearch(registry core.Registry, service core.PackageService, args []strin
 			ui.Warn("No results for %q", query)
 			continue
 		}
-		ui.DisplayPackageList(results, fmt.Sprintf("Matches for %q", query))
+		ui.DisplayPackageListPaginated(results, fmt.Sprintf("Matches for %q", query))
 		foundAny = true
 	}
 	return foundAny
