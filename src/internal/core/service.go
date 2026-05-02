@@ -17,23 +17,36 @@ func NewPackageService(registry Registry) PackageService {
 func (s PackageService) Search(query string) []Package {
 	available := s.registry.Available()
 	results := make([]Package, 0)
-	resultCh := make(chan []Package, len(available))
+	resultCh := make(chan searchResult, len(available))
 	var wg sync.WaitGroup
 
-	for _, provider := range available {
+	for _, name := range s.registry.Order() {
+		provider, ok := available[name]
+		if !ok {
+			continue
+		}
 		wg.Add(1)
 		go func(provider Provider) {
 			defer wg.Done()
-			resultCh <- provider.Search(query)
+			resultCh <- searchResult{provider: provider.Name(), packages: provider.Search(query)}
 		}(provider)
 	}
 
 	wg.Wait()
 	close(resultCh)
-	for packages := range resultCh {
-		results = append(results, packages...)
+	byProvider := make(map[string][]Package, len(available))
+	for result := range resultCh {
+		byProvider[result.provider] = result.packages
+	}
+	for _, name := range s.registry.Order() {
+		results = append(results, byProvider[name]...)
 	}
 	return results
+}
+
+type searchResult struct {
+	provider string
+	packages []Package
 }
 
 func (s PackageService) Install(specs []PackageSpec) []OperationResult {

@@ -18,26 +18,34 @@ func SelectPackages(packages []core.Package, prompt string, allowAll bool) []cor
 		return []core.Package{packages[0]}
 	}
 
-	DisplayPackageList(packages, prompt)
-	if allowAll {
-		fmt.Print("Select number(s), comma-separated, or 'all' [1]: ")
-	} else {
-		fmt.Print("Select number(s), comma-separated [1]: ")
-	}
-
 	reader := bufio.NewReader(os.Stdin)
-	raw, err := reader.ReadString('\n')
-	if err != nil {
-		return []core.Package{packages[0]}
-	}
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return []core.Package{packages[0]}
-	}
-	if allowAll && strings.EqualFold(raw, "all") {
-		return packages
-	}
+	for page := 0; ; page++ {
+		start, end := PackagePageBounds(len(packages), page, PackagePageSize)
+		printPackagePage(packages, prompt, start, end)
+		printSelectionPrompt(allowAll, len(packages) > PackagePageSize && end < len(packages))
 
+		raw, err := reader.ReadString('\n')
+		if err != nil {
+			return []core.Package{packages[start]}
+		}
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			if len(packages) > PackagePageSize && end < len(packages) {
+				continue
+			}
+			return []core.Package{packages[start]}
+		}
+		if strings.EqualFold(raw, "q") {
+			return nil
+		}
+		if allowAll && strings.EqualFold(raw, "all") {
+			return packages
+		}
+		return parsePackageSelection(raw, packages)
+	}
+}
+
+func parsePackageSelection(raw string, packages []core.Package) []core.Package {
 	var selected []core.Package
 	seen := map[int]bool{}
 	for _, part := range strings.Split(raw, ",") {
@@ -57,6 +65,18 @@ func SelectPackages(packages []core.Package, prompt string, allowAll bool) []cor
 		selected = append(selected, packages[index-1])
 	}
 	return selected
+}
+
+func printSelectionPrompt(allowAll, allowNext bool) {
+	options := "Select number(s), comma-separated"
+	if allowAll {
+		options += ", or 'all'"
+	}
+	if allowNext {
+		fmt.Printf("%s; Enter for more; q to cancel: ", options)
+		return
+	}
+	fmt.Printf("%s, or q to cancel [1]: ", options)
 }
 
 func Confirm(prompt string, defaultYes bool) bool {
